@@ -1,0 +1,14 @@
+.logo,.paper-logo{font-size:0!important;background:#fff url('/ac-pkg-logo.png') center/contain no-repeat!important;border-radius:7px;flex:0 0 auto;padding:0!important}
+.logo{width:52px;height:46px}
+.paper-logo{width:62px;height:62px}
+.logo b,.paper-logo b{display:none}
+.paper header{align-items:center;text-align:center;justify-content:center;border-bottom:0!important}
+.paper header>div:last-child b{font-size:15px;letter-spacing:.2px}
+.paper h1{border-top:1px solid #aab2bd;border-bottom:1px solid #aab2bd;padding:10px 0;margin:12px 0 14px!important}
+.paper-meta{border-color:#7b8491!important}
+.paper table th{font-size:10px;text-align:center;vertical-align:middle;background:#f5f6f8!important}
+.paper table td{text-align:center;vertical-align:middle}
+.paper table td:nth-child(2){text-align:left}
+.paper table tfoot td{font-weight:800;background:#fafafa}
+.paper-summary{font-size:11px;flex-wrap:wrap}
+@media print{.paper-logo{width:18mm;height:18mm}.paper header>div:last-child{flex:1}}

@@ -1,0 +1,151 @@
+import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/page-header";
+import { ManagedEntityTable } from "@/components/managed-entity-table";
+import { isLocalMode, localRows } from "@/lib/local-db";
+import { EntityCreateButton } from "@/components/entity-create-button";
+export default async function Page() {
+  const data = isLocalMode()
+    ? localRows("opportunities")
+    : ((
+        await (
+          await createClient()
+        )
+          .from("opportunities")
+          .select("*")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+      ).data ?? []);
+  const customerOptions = (
+    isLocalMode()
+      ? localRows("customers")
+      : ((
+          await (
+            await createClient()
+          )
+            .from("customers")
+            .select("id,company_name,contact_name,email,phone,country")
+            .is("deleted_at", null)
+            .order("company_name")
+        ).data ?? [])
+  ).map((c) => ({
+    value: String(c.id),
+    label: String(c.company_name),
+    keywords: [c.contact_name, c.email, c.phone, c.country]
+      .filter(Boolean)
+      .map(String)
+      .join(" "),
+  }));
+  const customerNames = new Map(customerOptions.map((c) => [c.value, c.label]));
+  const displayData = (data as Record<string, unknown>[]).map((project) => ({
+    ...project,
+    id: String(project.id),
+    customer_name:
+      customerNames.get(String(project.customer_id || "")) || "未关联客户",
+  }));
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="OPPORTUNITIES"
+        action={
+          <EntityCreateButton
+            table="opportunities"
+            label="项目"
+            fields={[
+              { key: "title", label: "项目名称", required: true },
+              {
+                key: "customer_id",
+                label: "关联客户",
+                type: "select",
+                options: customerOptions,
+              },
+              {
+                key: "status",
+                label: "阶段",
+                type: "select",
+                options: [
+                  "需求确认中",
+                  "有明确询盘",
+                  "已报价",
+                  "样品准备中",
+                  "样品已寄",
+                  "价格谈判",
+                  "等待订单",
+                  "已成交",
+                  "已流失",
+                ],
+              },
+              { key: "estimated_amount", label: "预计金额", type: "number" },
+              {
+                key: "currency",
+                label: "币种",
+                type: "select",
+                options: ["USD", "EUR", "CNY", "GBP"],
+              },
+              {
+                key: "expected_close_date",
+                label: "预计成交日期",
+                type: "date",
+              },
+              {
+                key: "project_progress",
+                label: "项目进度",
+                type: "textarea",
+              },
+            ]}
+          />
+        }
+        title="询盘与项目"
+        description="查看、编辑和批量管理询盘项目。"
+      />
+      <ManagedEntityTable
+        table="opportunities"
+        label="项目"
+        rows={displayData as (Record<string, unknown> & { id: string })[]}
+        columns={[
+          { key: "opportunity_code", label: "项目编号" },
+          { key: "title", label: "项目" },
+          { key: "customer_name", label: "客户公司" },
+          { key: "status", label: "阶段" },
+          { key: "project_progress", label: "最新进度" },
+          { key: "estimated_amount", label: "预计金额", format: "money" },
+          { key: "currency", label: "币种" },
+          { key: "expected_close_date", label: "预计成交", format: "date" },
+        ]}
+        fields={[
+          { key: "title", label: "项目名称" },
+          {
+            key: "customer_id",
+            label: "客户公司",
+            type: "select",
+            options: customerOptions,
+          },
+          {
+            key: "status",
+            label: "阶段",
+            type: "select",
+            options: [
+              "需求确认中",
+              "有明确询盘",
+              "已报价",
+              "样品准备中",
+              "样品已寄",
+              "价格谈判",
+              "等待订单",
+              "已成交",
+              "已流失",
+            ],
+          },
+          { key: "estimated_amount", label: "预计金额", type: "number" },
+          {
+            key: "currency",
+            label: "币种",
+            type: "select",
+            options: ["USD", "EUR", "CNY", "GBP"],
+          },
+          { key: "expected_close_date", label: "预计成交日期", type: "date" },
+          { key: "project_progress", label: "项目进度", type: "textarea" },
+        ]}
+      />
+    </div>
+  );
+}

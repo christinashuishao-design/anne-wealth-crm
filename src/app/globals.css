@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+:root { --cream:#f7f2e8; --ink:#173b34; --gold:#c79f52; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--cream); color:#252a28; font-family:Arial,"Microsoft YaHei",sans-serif; }
+button,input,select,textarea { font:inherit; }
+@keyframes shimmer { 0%{background-position:-300px 0} 100%{background-position:300px 0} }
+.skeleton { background:linear-gradient(90deg,#eee7db 25%,#faf7f1 50%,#eee7db 75%); background-size:600px 100%; animation:shimmer 1.4s infinite; }

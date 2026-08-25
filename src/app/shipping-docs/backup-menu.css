@@ -1,0 +1,31 @@
+.backup-menu {
+  position: relative;
+}
+
+.backup-options {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 190px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #d5dce8;
+  border-radius: 9px;
+  box-shadow: 0 10px 28px #07172f40;
+}
+
+.top-actions .backup-options button {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: nowrap;
+  color: #23324d;
+  background: #fff;
+  border: 0;
+}
+
+.top-actions .backup-options button:hover {
+  color: #173f75;
+  background: #edf4fc;
+}
