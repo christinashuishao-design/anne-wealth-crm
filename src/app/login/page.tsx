@@ -23,6 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <label className="block text-sm font-medium">密码<div className="mt-2 flex items-center border rounded-xl px-3"><LockKeyhole size={17} className="text-neutral-400"/><input name="password" type="password" required className="w-full p-3 outline-none" placeholder="••••••••" /></div></label>
         {configured?<button className="w-full rounded-xl bg-[#173b34] text-white py-3.5 font-medium hover:bg-[#204c43]">登录 Anne CRM</button>:<Link href="/setup" className="block text-center w-full rounded-xl bg-[#173b34] text-white py-3.5 font-medium hover:bg-[#204c43]">打开首次配置向导</Link>}
       </form>
+      {!local&&configured&&<Link href="/forgot-password" className="mt-5 block text-center text-sm text-neutral-600 underline">忘记密码？</Link>}
     </div></section>
   </main>;
 }
