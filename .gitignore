@@ -65,3 +65,6 @@ next-env.d.ts
 /scripts/batch-customer-research.mjs
 /scripts/push-crm-to-lark.mjs
 /scripts/upsert-superbee-inquiry-draft.mjs
+/dist/
+.vinext/
+.wrangler/
