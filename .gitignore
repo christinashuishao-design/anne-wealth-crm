@@ -60,3 +60,8 @@ next-env.d.ts
 /open-crm-when-ready.ps1
 /scripts/start-crm.ps1
 /scripts/crm-supervisor.mjs
+
+# local-only CRM data migration and enrichment scripts
+/scripts/batch-customer-research.mjs
+/scripts/push-crm-to-lark.mjs
+/scripts/upsert-superbee-inquiry-draft.mjs

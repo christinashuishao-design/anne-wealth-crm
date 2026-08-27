@@ -5,7 +5,7 @@ const groups = [
   ["工作台", BarChart3, [["数据看板","/dashboard"],["今日待办","/tasks?view=today"],["逾期提醒","/tasks?view=overdue"],["通知中心","/notifications"]]],
   ["客户管理", Users, [["所有客户","/customers"],["客户背调","/customer-research"],["客户联系人","/contacts"]]],
   ["项目管理", ClipboardList, [["全部项目","/opportunities"],["项目看板","/opportunities?view=board"],["报价后待回复","/opportunities?status=已报价"]]],
-  ["跟进中心", Bell, [["跟进任务","/tasks"],["跟进记录","/follow-ups"]]],
+  ["跟进中心", Bell, [["邮件审批","/mail-approvals"],["跟进任务","/tasks"],["跟进记录","/follow-ups"]]],
   ["产品中心", Boxes, [["全部产品","/products"],["产品分类","/product-categories"],["供应商产品","/supplier-products"],["供应商报价","/quotations"],["报价即将到期","/quotations?view=expiring"]]],
   ["供应商管理", Factory, [["全部供应商","/suppliers"],["供应商评分","/suppliers?view=ratings"]]],
   ["订单管理", Building2, [["全部订单","/orders"],["生产中","/orders?status=生产中"]]],

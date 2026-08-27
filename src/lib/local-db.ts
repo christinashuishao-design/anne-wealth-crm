@@ -29,6 +29,10 @@ export function localDb() {
     create table if not exists financial_records(id text primary key,record_type text not null,category text,counterparty text,amount real not null,currency text not null,amount_cny real not null,occurred_at text not null,status text,notes text,created_at text default current_timestamp,deleted_at text);
     create table if not exists lark_connections(id text primary key,name text not null,app_id text not null,app_secret_encrypted text not null,base_token text not null,table_id text not null,field_mapping text not null,last_synced_at text,created_at text default current_timestamp,updated_at text default current_timestamp);
     create table if not exists lark_sync_runs(id text primary key,connection_id text not null,status text not null,total_records integer default 0,created_records integer default 0,updated_records integer default 0,failed_records integer default 0,error_message text,started_at text default current_timestamp,completed_at text);
+    create table if not exists customer_research_reports(id text primary key,customer_id text not null unique,report_data text not null default '{}',verification_status text not null default '待核验',researched_at text,created_at text default current_timestamp,updated_at text default current_timestamp,foreign key(customer_id) references customers(id));
+    create table if not exists customer_research_contacts(id text primary key,customer_id text not null,name text,position text,email text,phone text,linkedin text,source_url text,verification_status text not null default '待核验',created_at text default current_timestamp,foreign key(customer_id) references customers(id));
+    create table if not exists customer_research_sources(id text primary key,customer_id text not null,title text,url text not null,fact_summary text,verification_status text not null default '待核验',checked_at text,created_at text default current_timestamp,foreign key(customer_id) references customers(id));
+    create table if not exists communication_sync_events(id text primary key,source text not null,external_id text not null,customer_id text,occurred_at text,summary text,task_id text,created_at text default current_timestamp,unique(source,external_id));
   `);
   const customerColumns = db.prepare("pragma table_info(customers)").all() as {
     name: string;
@@ -506,6 +510,35 @@ export function localUpdateCustomerResearch(
       values.notes || null,
       id,
     );
+}
+
+export function localCustomerResearch(customerId: string) {
+  const db = localDb();
+  const report = db.prepare("select * from customer_research_reports where customer_id=?").get(customerId) as Record<string, unknown> | undefined;
+  const contacts = db.prepare("select * from customer_research_contacts where customer_id=? order by created_at").all(customerId) as Record<string, unknown>[];
+  const sources = db.prepare("select * from customer_research_sources where customer_id=? order by created_at").all(customerId) as Record<string, unknown>[];
+  return { report, contacts, sources };
+}
+
+export function localSaveDetailedResearch(customerId: string, values: {
+  report: Record<string, string>;
+  contacts: Array<Record<string, string>>;
+  sources: Array<Record<string, string>>;
+  verificationStatus: string;
+  researchedAt?: string;
+}) {
+  const db = localDb();
+  db.transaction(() => {
+    db.prepare(`insert into customer_research_reports(id,customer_id,report_data,verification_status,researched_at,created_at,updated_at)
+      values(?,?,?,?,?,?,?) on conflict(customer_id) do update set report_data=excluded.report_data,verification_status=excluded.verification_status,researched_at=excluded.researched_at,updated_at=excluded.updated_at`)
+      .run(crypto.randomUUID(), customerId, JSON.stringify(values.report), values.verificationStatus, values.researchedAt || null, new Date().toISOString(), new Date().toISOString());
+    db.prepare("delete from customer_research_contacts where customer_id=?").run(customerId);
+    db.prepare("delete from customer_research_sources where customer_id=?").run(customerId);
+    const addContact = db.prepare("insert into customer_research_contacts(id,customer_id,name,position,email,phone,linkedin,source_url,verification_status,created_at) values(?,?,?,?,?,?,?,?,?,?)");
+    for (const c of values.contacts) addContact.run(crypto.randomUUID(), customerId, c.name || null, c.position || null, c.email || null, c.phone || null, c.linkedin || null, c.source_url || null, c.verification_status || "待核验", new Date().toISOString());
+    const addSource = db.prepare("insert into customer_research_sources(id,customer_id,title,url,fact_summary,verification_status,checked_at,created_at) values(?,?,?,?,?,?,?,?)");
+    for (const s of values.sources) addSource.run(crypto.randomUUID(), customerId, s.title || null, s.url, s.fact_summary || null, s.verification_status || "待核验", values.researchedAt || null, new Date().toISOString());
+  })();
 }
 export function localCreateProduct(v: Record<string, unknown>) {
   localDb()

@@ -45,6 +45,10 @@ export default async function CustomersPage({
     page: pageValue = "1",
     pageSize: pageSizeValue = "50",
   } = await searchParams;
+  const normalizedQuery = q
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\s()\-+_.@，,]/g, "");
   const pageSize = pageSizeValue === "100" ? 100 : 50;
   const requestedPage = Math.max(1, Number.parseInt(pageValue, 10) || 1);
   let total = 0;
@@ -52,10 +56,25 @@ export default async function CustomersPage({
     error: { message: string } | null = null;
   if (isLocalMode()) {
     const filtered = localRows("customers").filter(
-      (c) =>
-        (!q ||
-          String(c.company_name).toLowerCase().includes(q.toLowerCase())) &&
-        (!stage || c.stage === stage),
+      (c) => {
+        const searchable = [
+          c.company_name,
+          c.customer_code,
+          c.contact_name,
+          c.phone,
+          c.email,
+          c.country,
+        ]
+          .map((value) => String(value ?? ""))
+          .join(" ")
+          .normalize("NFKC")
+          .toLocaleLowerCase()
+          .replace(/[\s()\-+_.@，,]/g, "");
+        return (
+          (!normalizedQuery || searchable.includes(normalizedQuery)) &&
+          (!stage || c.stage === stage)
+        );
+      },
     );
     total = filtered.length;
     const safePage = Math.min(
@@ -78,7 +97,9 @@ export default async function CustomersPage({
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range((requestedPage - 1) * pageSize, requestedPage * pageSize - 1);
-    if (q) query = query.ilike("company_name", `%${q}%`);
+    if (q.trim()) query = query.or(
+      `company_name.ilike.%${q.trim()}%,contact_name.ilike.%${q.trim()}%,email.ilike.%${q.trim()}%,phone.ilike.%${q.trim()}%,customer_code.ilike.%${q.trim()}%`,
+    );
     if (stage) query = query.eq("stage", stage);
     const result = await query;
     data = result.data as CustomerRow[] | null;
@@ -186,7 +207,7 @@ export default async function CustomersPage({
             name="q"
             defaultValue={q}
             className="p-2.5 outline-none w-full"
-            placeholder="搜索公司名称"
+            placeholder="搜索公司名、联系人、电话、邮箱或客户编号"
           />
         </div>
         <select
