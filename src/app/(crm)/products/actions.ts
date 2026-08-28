@@ -166,6 +166,32 @@ export async function deleteProducts(ids: string[]) {
   }
   revalidatePath("/products");
 }
+
+const commercialStatusSchema = z.enum([
+  "未成交",
+  "已报价",
+  "已打样",
+  "已下单",
+  "已成交",
+]);
+
+export async function updateProductCommercialStatus(id: string, status: string) {
+  const validId = z.string().uuid().parse(id);
+  const validStatus = commercialStatusSchema.parse(status);
+  if (isLocalMode()) {
+    localUpdateProduct(validId, { commercial_status: validStatus });
+  } else {
+    const db = await createClient();
+    const { error } = await db
+      .from("products")
+      .update({ commercial_status: validStatus })
+      .eq("id", validId);
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/products");
+  revalidatePath("/pricing");
+}
+
 export async function updateProduct(id: string, fd: FormData) {
   const v = schema.parse(Object.fromEntries(fd)),
     local = isLocalMode(),

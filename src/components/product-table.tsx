@@ -2,7 +2,10 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { ImageIcon, Trash2 } from "lucide-react";
-import { deleteProducts } from "@/app/(crm)/products/actions";
+import {
+  deleteProducts,
+  updateProductCommercialStatus,
+} from "@/app/(crm)/products/actions";
 import { ProductEditButton } from "@/components/product-edit-button";
 export type ProductRow = Record<string, unknown> & {
   id: string;
@@ -34,7 +37,8 @@ export function ProductTable({
   suppliers: { value: string; label: string }[];
 }) {
   const [checked, setChecked] = useState<string[]>([]),
-    [targets, setTargets] = useState<string[]>([]);
+    [targets, setTargets] = useState<string[]>([]),
+    [statusError, setStatusError] = useState("");
   const [pending, start] = useTransition(),
     all = rows.length > 0 && checked.length === rows.length;
   const remove = () =>
@@ -61,6 +65,11 @@ export function ProductTable({
         </button>
       </div>
       <div className="overflow-x-auto rounded-2xl border bg-white">
+        {statusError && (
+          <div className="border-b bg-red-50 px-4 py-3 text-sm text-red-700">
+            {statusError}
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead className="bg-[#faf7f1]">
             <tr>
@@ -175,7 +184,39 @@ export function ProductTable({
                     {p.special_notes || "—"}
                   </td>
                   <td className="whitespace-nowrap p-4">
-                    <span className={`rounded-full px-2 py-1 ${p.commercial_status === "已成交" ? "bg-emerald-100 text-emerald-800" : p.commercial_status === "已下单" ? "bg-blue-100 text-blue-800" : "bg-neutral-100 text-neutral-700"}`}>{p.commercial_status || "未成交"}</span>
+                    <select
+                      aria-label={`修改 ${p.product_name} 的成交状态`}
+                      className={`cursor-pointer rounded-full border-0 px-2 py-1 outline-none ring-1 ring-inset ring-neutral-200 ${p.commercial_status === "已成交" ? "bg-emerald-100 text-emerald-800" : p.commercial_status === "已下单" ? "bg-blue-100 text-blue-800" : "bg-neutral-100 text-neutral-700"}`}
+                      defaultValue={p.commercial_status || "未成交"}
+                      disabled={pending}
+                      onChange={(event) => {
+                        const select = event.currentTarget;
+                        const previous = p.commercial_status || "未成交";
+                        const next = select.value;
+                        setStatusError("");
+                        start(async () => {
+                          try {
+                            await updateProductCommercialStatus(p.id, next);
+                            p.commercial_status = next;
+                          } catch (error) {
+                            select.value = previous;
+                            setStatusError(
+                              error instanceof Error
+                                ? `成交状态保存失败：${error.message}`
+                                : "成交状态保存失败，请重试。",
+                            );
+                          }
+                        });
+                      }}
+                    >
+                      {["未成交", "已报价", "已打样", "已下单", "已成交"].map(
+                        (status) => (
+                          <option value={status} key={status}>
+                            {status}
+                          </option>
+                        ),
+                      )}
+                    </select>
                   </td>
                   <td className="p-4">
                     <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
