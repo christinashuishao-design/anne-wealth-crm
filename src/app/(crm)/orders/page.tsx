@@ -5,30 +5,21 @@ import { isLocalMode, localRows } from "@/lib/local-db";
 import { EntityCreateButton } from "@/components/entity-create-button";
 import { nextOrderNumber } from "@/lib/order-number";
 export default async function Page() {
-  const data = isLocalMode()
-    ? localRows("orders")
-    : ((
-        await (
-          await createClient()
-        )
-          .from("orders")
-          .select("*")
-          .is("deleted_at", null)
-          .order("order_date", { ascending: false })
-      ).data ?? []);
-  const customerOptions = (
-    isLocalMode()
-      ? localRows("customers")
-      : ((
-          await (
-            await createClient()
-          )
-            .from("customers")
-            .select("id,company_name")
-            .is("deleted_at", null)
-            .order("company_name")
-        ).data ?? [])
-  ).map((c) => ({ value: String(c.id), label: String(c.company_name) }));
+  let data: Record<string, unknown>[];
+  let customers: Record<string, unknown>[];
+  if (isLocalMode()) {
+    data = localRows("orders");
+    customers = localRows("customers");
+  } else {
+    const db = await createClient();
+    const [ordersResult, customersResult] = await Promise.all([
+      db.from("orders").select("*").is("deleted_at", null).order("order_date", { ascending: false }),
+      db.from("customers").select("id,company_name").is("deleted_at", null).order("company_name"),
+    ]);
+    data = ordersResult.data ?? [];
+    customers = customersResult.data ?? [];
+  }
+  const customerOptions = customers.map((c) => ({ value: String(c.id), label: String(c.company_name) }));
   const customerNames = new Map(customerOptions.map((c) => [c.value, c.label]));
   const suggestedOrderNumber = nextOrderNumber(
     (data as Record<string, unknown>[]).map((order) => order.order_number),

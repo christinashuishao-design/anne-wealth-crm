@@ -11,45 +11,28 @@ import { FinancialRecordsTable } from "@/components/financial-records-table";
 const input = "mt-1 w-full rounded-xl border border-[#d8ccb8] px-3 py-2.5";
 export default async function Page() {
   let records: Record<string, unknown>[] = [];
-  if (isLocalMode()) records = localRows("financial_records");
-  else
-    records =
-      (
-        await (
-          await createClient()
-        )
-          .from("financial_records")
-          .select("*")
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-      ).data ?? [];
-  const supplierOptions = (
-    isLocalMode()
-      ? localRows("suppliers")
-      : ((
-          await (
-            await createClient()
-          )
-            .from("suppliers")
-            .select("id,company_name")
-            .is("deleted_at", null)
-            .order("company_name")
-        ).data ?? [])
-  ).map((s) => ({
+  let suppliers: Record<string, unknown>[];
+  let orders: Record<string, unknown>[];
+  if (isLocalMode()) {
+    records = localRows("financial_records");
+    suppliers = localRows("suppliers");
+    orders = localRows("orders");
+  } else {
+    const db = await createClient();
+    const [recordsResult, suppliersResult, ordersResult] = await Promise.all([
+      db.from("financial_records").select("*").is("deleted_at", null).order("occurred_at", { ascending: false }),
+      db.from("suppliers").select("id,company_name").is("deleted_at", null).order("company_name"),
+      db.from("orders").select("id,order_number,sales_amount,sales_currency,revenue_cny").is("deleted_at", null).order("order_date", { ascending: false }),
+    ]);
+    records = recordsResult.data ?? [];
+    suppliers = suppliersResult.data ?? [];
+    orders = ordersResult.data ?? [];
+  }
+  const supplierOptions = suppliers.map((s) => ({
     value: String(s.company_name),
     label: String(s.company_name),
   }));
-  const orderOptions = (
-    isLocalMode()
-      ? localRows("orders")
-      : ((
-          await (await createClient())
-            .from("orders")
-            .select("id,order_number,sales_amount,sales_currency,revenue_cny")
-            .is("deleted_at", null)
-            .order("order_date", { ascending: false })
-        ).data ?? [])
-  ).map((order) => ({
+  const orderOptions = orders.map((order) => ({
     value: String(order.id),
     label: `${String(order.order_number)} · ${String(order.sales_currency || "CNY")} ${Number(order.sales_amount || order.revenue_cny || 0).toLocaleString()}`,
   }));

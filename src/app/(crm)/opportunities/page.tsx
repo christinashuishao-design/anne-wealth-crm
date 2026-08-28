@@ -4,30 +4,21 @@ import { ManagedEntityTable } from "@/components/managed-entity-table";
 import { isLocalMode, localRows } from "@/lib/local-db";
 import { EntityCreateButton } from "@/components/entity-create-button";
 export default async function Page() {
-  const data = isLocalMode()
-    ? localRows("opportunities")
-    : ((
-        await (
-          await createClient()
-        )
-          .from("opportunities")
-          .select("*")
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-      ).data ?? []);
-  const customerOptions = (
-    isLocalMode()
-      ? localRows("customers")
-      : ((
-          await (
-            await createClient()
-          )
-            .from("customers")
-            .select("id,company_name,contact_name,email,phone,country")
-            .is("deleted_at", null)
-            .order("company_name")
-        ).data ?? [])
-  ).map((c) => ({
+  let data: Record<string, unknown>[];
+  let customers: Record<string, unknown>[];
+  if (isLocalMode()) {
+    data = localRows("opportunities");
+    customers = localRows("customers");
+  } else {
+    const db = await createClient();
+    const [opportunitiesResult, customersResult] = await Promise.all([
+      db.from("opportunities").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+      db.from("customers").select("id,company_name,contact_name,email,phone,country").is("deleted_at", null).order("company_name"),
+    ]);
+    data = opportunitiesResult.data ?? [];
+    customers = customersResult.data ?? [];
+  }
+  const customerOptions = customers.map((c) => ({
     value: String(c.id),
     label: String(c.company_name),
     keywords: [c.contact_name, c.email, c.phone, c.country]
