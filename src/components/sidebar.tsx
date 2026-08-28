@@ -14,7 +14,7 @@ const groups = [
   ["系统设置", Settings, [["用户管理","/settings/users"],["角色权限","/settings/roles"],["操作日志","/settings/audit"]]],
 ] as const;
 
-export function Sidebar() { return <aside className="w-64 bg-[#173b34] text-white h-screen fixed left-0 top-0 overflow-y-auto hidden lg:block">
-  <div className="h-20 px-5 flex items-center gap-3 border-b border-white/10 sticky top-0 bg-[#173b34] z-10"><Coins className="text-[#d4af67]"/><div><b>Anne小富婆CRM</b><div className="text-[10px] tracking-widest text-white/45">ANNE WEALTH CRM</div></div></div>
-  <nav className="p-3 pb-10">{groups.map(([label,Icon,links])=><div key={label} className="mb-4"><div className="px-3 py-2 text-[11px] uppercase tracking-wider text-white/40 flex gap-2 items-center"><Icon size={13}/>{label}</div>{links.map(([name,href])=><Link key={name} href={href} className="block px-8 py-2 rounded-lg text-sm text-white/72 hover:bg-white/10 hover:text-white">{name}</Link>)}</div>)}</nav>
+export function Sidebar() { return <aside className="w-56 bg-[#173b34] text-white h-screen fixed left-0 top-0 overflow-y-auto hidden lg:block">
+  <div className="h-14 px-4 flex items-center gap-2.5 border-b border-white/10 sticky top-0 bg-[#173b34] z-10"><Coins size={20} className="text-[#d4af67]"/><div><b className="text-sm">Anne小富婆CRM</b><div className="text-[9px] tracking-widest text-white/45">ANNE WEALTH CRM</div></div></div>
+  <nav className="p-2 pb-3">{groups.map(([label,Icon,links])=><div key={label} className="mb-1"><div className="px-2 py-1 text-[10px] uppercase tracking-wider text-white/40 flex gap-1.5 items-center leading-4"><Icon size={11}/>{label}</div>{links.map(([name,href])=><Link key={name} href={href} className="block px-7 py-0.5 rounded-md text-[13px] leading-[18px] text-white/72 hover:bg-white/10 hover:text-white">{name}</Link>)}</div>)}</nav>
   </aside>; }
