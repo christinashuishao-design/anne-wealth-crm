@@ -30,7 +30,10 @@ const schema = z.object({
     z.coerce.number().nonnegative().optional(),
   ),
   purchase_notes: z.string().optional(),
-  primary_supplier_id: z.string().optional(),
+  primary_supplier_id: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().uuid().optional(),
+  ),
   purchase_moq: z.preprocess(
     (v) => (v === "" ? undefined : v),
     z.coerce.number().int().nonnegative().optional(),
@@ -87,23 +90,31 @@ export async function saveRecognizedPrice(fd: FormData) {
 }
 
 export async function saveRecognizedProduct(fd: FormData) {
-  const v = schema.parse(Object.fromEntries(fd));
-  const local = isLocalMode();
-  if (local) {
-    localCreateProduct({ ...v, image_path: null });
-  } else {
-    const db = await createClient();
-    const { data: { user } } = await db.auth.getUser();
-    if (!user) throw new Error("登录已失效，请重新登录");
-    const { error } = await db.from("products").insert({
-      ...v,
-      image_path: null,
-      product_code: `PRD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-    });
-    if (error) throw new Error(error.message);
+  try {
+    const parsed = schema.safeParse(Object.fromEntries(fd));
+    if (!parsed.success) return { ok: false, message: "请检查产品名称和分类等必填项" };
+    const v = parsed.data;
+    const local = isLocalMode();
+    if (local) {
+      localCreateProduct({ ...v, image_path: null });
+    } else {
+      const db = await createClient();
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) return { ok: false, message: "登录已失效，请重新登录" };
+      const { error } = await db.from("products").insert({
+        ...v,
+        primary_supplier_id: v.primary_supplier_id || null,
+        image_path: null,
+        product_code: `PRD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+      });
+      if (error) return { ok: false, message: `保存失败：${error.message}` };
+    }
+    revalidatePath("/products");
+    revalidatePath("/pricing");
+    return { ok: true, message: "产品已保存" };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "保存失败，请重试" };
   }
-  revalidatePath("/products");
-  revalidatePath("/pricing");
 }
 async function saveImage(value: FormDataEntryValue | null, local: boolean) {
   if (!(value instanceof File) || !value.size) return null;

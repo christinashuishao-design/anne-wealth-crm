@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { Worker } from "tesseract.js";
 import { ClipboardPaste, ImagePlus, ScanLine, X } from "lucide-react";
 import { saveRecognizedProduct } from "@/app/(crm)/products/actions";
@@ -41,7 +42,8 @@ function mergeOcrText(...texts: string[]) {
 }
 
 export function ScreenshotPriceImporter({ categories, suppliers }: { categories: Option[]; suppliers: Option[] }) {
-  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
+  const router=useRouter();
+  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
   const preview=useMemo(()=>image?URL.createObjectURL(image):"",[image]);
 
@@ -105,6 +107,21 @@ export function ScreenshotPriceImporter({ categories, suppliers }: { categories:
       setLoading(false); setProgress("");
     }
   }
+  async function saveProduct(formData: FormData) {
+    setSaving(true); setError("");
+    try {
+      const response = await saveRecognizedProduct(formData);
+      if (!response.ok) {
+        setError(response.message);
+        return;
+      }
+      setOpen(false); setResult(null); setImage(null); router.refresh();
+    } catch {
+      setError("保存失败，请检查网络后重试");
+    } finally {
+      setSaving(false);
+    }
+  }
   return <>
     <button onClick={()=>setOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-[#173b34] bg-white px-4 py-2.5 text-sm text-[#173b34]"><ScanLine size={17}/>截图识别价格</button>
     {open&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white">
@@ -126,8 +143,9 @@ export function ScreenshotPriceImporter({ categories, suppliers }: { categories:
         {loading&&progress&&<p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{progress}</p>}
         <button disabled={loading||!image} className="w-full rounded-xl bg-[#173b34] py-3 text-white disabled:opacity-50">{loading?"正在免费识别…":"开始免费识别"}</button>
       </form>:
-      <form action={saveRecognizedProduct} onSubmit={()=>setOpen(false)} className="grid gap-4 p-5 sm:grid-cols-2">
+      <form action={saveProduct} className="grid gap-4 p-5 sm:grid-cols-2">
         <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">识别置信度：{Math.round(result.confidence*100)}%。未识别字段已留空，请确认后保存。</div>
+        {error&&<p className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700" aria-live="polite">{error}</p>}
         <label className="text-sm sm:col-span-2">产品名称*<input className={field} name="product_name" defaultValue={result.product_name||""} required/></label>
         <label className="text-sm">分类*<SearchableSelect name="category_id" options={categories} placeholder="选择产品分类" required/></label>
         <label className="text-sm">材质<input className={field} name="material" defaultValue={result.material||""}/></label>
@@ -142,7 +160,7 @@ export function ScreenshotPriceImporter({ categories, suppliers }: { categories:
         <label className="text-sm sm:col-span-2">采购备注<textarea className={`${field} min-h-24`} name="purchase_notes" defaultValue={[result.minimum_order_amount?`最低订单金额：${result.minimum_order_amount}元`:null,result.tax_included==="true"?"含税":result.tax_included==="false"?"未税":null,result.trade_term,result.notes].filter(Boolean).join("；")}/></label>
         <label className="text-sm sm:col-span-2">特别注意事项<textarea className={`${field} min-h-20`} name="special_notes" placeholder="质量要求、包装要求、易错点等（未识别可留空）"/></label>
         <input type="hidden" name="product_name_en" value=""/><input type="hidden" name="product_status" value="待整理"/><input type="hidden" name="search_keywords" value=""/>
-        <button type="button" onClick={()=>{setResult(null);setImage(null);}} className="rounded-xl border py-3">重新识别</button><button className="rounded-xl bg-[#173b34] py-3 text-white">确认写入产品资料库</button>
+        <button type="button" disabled={saving} onClick={()=>{setResult(null);setImage(null);}} className="rounded-xl border py-3 disabled:opacity-50">重新识别</button><button disabled={saving} className="rounded-xl bg-[#173b34] py-3 text-white disabled:opacity-50">{saving?"正在保存…":"确认写入产品资料库"}</button>
       </form>}
     </div></div>}
   </>;
