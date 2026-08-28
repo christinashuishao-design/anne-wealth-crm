@@ -41,11 +41,32 @@ function mergeOcrText(...texts: string[]) {
   }).join("\n");
 }
 
+function guessCategory(options: Option[], result: Result) {
+  const text = `${result.product_name || ""} ${result.material || ""}`.toLowerCase();
+  const rules: Array<[RegExp, string[]]> = [
+    [/泡沫|foaming/, ["泡沫瓶", "乳液泵"]],
+    [/真空|airless/, ["真空瓶"]],
+    [/膏霜|罐|jar/, ["膏霜罐"]],
+    [/软管|tube/, ["化妆品软管"]],
+    [/喷雾|spray/, ["喷雾泵"]],
+    [/泵|pump/, ["乳液泵"]],
+    [/纸盒|彩盒|box/, ["纸盒", "礼品盒"]],
+    [/瓶|pet|hdpe|ldpe/, ["PET瓶"]],
+  ];
+  for (const [pattern, labels] of rules) {
+    if (!pattern.test(text)) continue;
+    const match = options.find((option) => labels.some((label) => option.label.includes(label)));
+    if (match) return match.value;
+  }
+  return options.find((option) => option.label.includes("其他"))?.value || options[0]?.value || "";
+}
+
 export function ScreenshotPriceImporter({ categories, suppliers }: { categories: Option[]; suppliers: Option[] }) {
   const router=useRouter();
   const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
   const preview=useMemo(()=>image?URL.createObjectURL(image):"",[image]);
+  const suggestedCategory=useMemo(()=>result?guessCategory(categories,result):"",[categories,result]);
 
   function chooseImage(file?: File) {
     if (!file) return;
@@ -147,7 +168,7 @@ export function ScreenshotPriceImporter({ categories, suppliers }: { categories:
         <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">识别置信度：{Math.round(result.confidence*100)}%。未识别字段已留空，请确认后保存。</div>
         {error&&<p className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700" aria-live="polite">{error}</p>}
         <label className="text-sm sm:col-span-2">产品名称*<input className={field} name="product_name" defaultValue={result.product_name||""} required/></label>
-        <label className="text-sm">分类*<SearchableSelect name="category_id" options={categories} placeholder="选择产品分类" required/></label>
+        <label className="text-sm">分类*<SearchableSelect key={suggestedCategory} name="category_id" options={categories} defaultValue={suggestedCategory} placeholder="选择产品分类" required/></label>
         <label className="text-sm">材质<input className={field} name="material" defaultValue={result.material||""}/></label>
         <label className="text-sm">容量<input className={field} name="capacity_value" type="number" step="0.01" defaultValue={result.capacity_value??""}/></label>
         <label className="text-sm">容量单位<select className={field} name="capacity_unit" defaultValue={result.capacity_unit}><option>ml</option><option>g</option><option>L</option><option>oz</option><option>kg</option></select></label>
