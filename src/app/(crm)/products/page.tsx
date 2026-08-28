@@ -107,7 +107,7 @@ export default async function Products({
         eyebrow="PRODUCT LIBRARY"
         title="产品资料库"
         description="管理产品图片、规格、供应能力和有效报价。"
-        action={<div className="flex gap-2"><ScreenshotPriceImporter products={(data ?? []).map((p) => ({value:String(p.id),label:String(p.product_name)}))} suppliers={supplierOptions}/><ModalForm title="新建产品">
+        action={<div className="flex gap-2"><ScreenshotPriceImporter suppliers={supplierOptions} categories={(categories ?? []).map((c) => ({value:c.id,label:c.category_name}))}/><ModalForm title="新建产品">
             <form action={createProduct} className="grid gap-4 sm:grid-cols-2">
               {[
                 ["产品名称*", "product_name"],

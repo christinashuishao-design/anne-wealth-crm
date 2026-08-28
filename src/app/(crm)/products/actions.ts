@@ -85,6 +85,26 @@ export async function saveRecognizedPrice(fd: FormData) {
   revalidatePath("/products");
   revalidatePath("/pricing");
 }
+
+export async function saveRecognizedProduct(fd: FormData) {
+  const v = schema.parse(Object.fromEntries(fd));
+  const local = isLocalMode();
+  if (local) {
+    localCreateProduct({ ...v, image_path: null });
+  } else {
+    const db = await createClient();
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) throw new Error("登录已失效，请重新登录");
+    const { error } = await db.from("products").insert({
+      ...v,
+      image_path: null,
+      product_code: `PRD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+    });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/products");
+  revalidatePath("/pricing");
+}
 async function saveImage(value: FormDataEntryValue | null, local: boolean) {
   if (!(value instanceof File) || !value.size) return null;
   if (!["image/jpeg", "image/png", "image/webp"].includes(value.type))

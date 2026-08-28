@@ -14,9 +14,9 @@ describe("parsePricingOcr", () => {
 
   it("uses safe editable defaults when price and MOQ are missing", () => {
     const result = parsePricingOcr("product photo only", 70);
-    expect(result.unit_price).toBe(0);
-    expect(result.minimum_quantity).toBe(1);
-    expect(result.notes).toContain("人工核对");
+    expect(result.unit_price).toBeNull();
+    expect(result.minimum_quantity).toBeNull();
+    expect(result.notes).toContain("已留空待确认");
   });
 
   it("extracts the primary price and preserves add-on prices from a chat quote", () => {
@@ -26,5 +26,12 @@ describe("parsePricingOcr", () => {
     expect(result.notes).toContain("0.55");
     expect(result.notes).toContain("0.7");
     expect(result.notes).toContain("0.4");
+  });
+
+  it("keeps a minimum order amount separate from MOQ", () => {
+    const result = parsePricingOcr("350ML瓶身0.95元/个，大货至少3500元", 75);
+    expect(result.unit_price).toBe(0.95);
+    expect(result.minimum_quantity).toBeNull();
+    expect(result.minimum_order_amount).toBe(3500);
   });
 });

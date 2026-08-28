@@ -3,10 +3,14 @@ export type FreePricingResult = {
   supplier_name: string | null;
   material: string | null;
   capacity: string | null;
+  capacity_value: number | null;
+  capacity_unit: string;
+  neck_size: string | null;
   currency: "CNY" | "USD" | "EUR" | "GBP";
-  minimum_quantity: number;
+  minimum_quantity: number | null;
   maximum_quantity: number | null;
-  unit_price: number;
+  unit_price: number | null;
+  minimum_order_amount: number | null;
   tax_included: "true" | "false" | "unknown";
   trade_term: string | null;
   valid_until: string | null;
@@ -50,7 +54,7 @@ function extractQuantity(text: string) {
     const quantity = toNumber(text.match(pattern)?.[1]);
     if (quantity && Number.isInteger(quantity) && quantity > 0) return quantity;
   }
-  return 1;
+  return null;
 }
 
 function priceCandidates(text: string) {
@@ -88,10 +92,12 @@ function extractProductName(text: string) {
 export function parsePricingOcr(rawText: string, ocrConfidence = 0): FreePricingResult {
   const text = normalize(rawText);
   const prices = priceCandidates(text);
-  const price = prices[0]?.value ?? 0;
+  const price = prices[0]?.value ?? null;
   const quantity = extractQuantity(text);
   const material = text.match(/\b(PETG|HDPE|LDPE|PCR|ABS|SAN|AS|PET|PP|PE|PS|PMMA|铝|玻璃|纸)\b/i)?.[1] ?? null;
   const capacityMatch = text.match(/\b(\d+(?:\.\d+)?)\s*(ml|mL|ML|g|kg|oz|L)\b/);
+  const neckMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:牙|口径|mm口)/i);
+  const minimumOrderAmount = toNumber(text.match(/(?:至少|最低(?:订单)?金额|起订金额)\s*(?:为|是|[:=])?\s*(\d[\d,.]*)\s*元/i)?.[1]);
   const taxIncluded = /不含税|未税|税外|excluding\s*tax/i.test(text)
     ? "false"
     : /含税|含发票|including\s*tax/i.test(text)
@@ -100,12 +106,13 @@ export function parsePricingOcr(rawText: string, ocrConfidence = 0): FreePricing
   const tradeTerm = text.match(/\b(EXW|FOB|CIF|CFR|DDP|DAP)\b/i)?.[1]?.toUpperCase() ?? null;
   const warnings = [
     "免费本地 OCR 结果，请人工核对后再保存",
-    price ? null : "未可靠识别单价，已暂填 0",
-    quantity === 1 && !/(?:MOQ|起订|数量|qty)/i.test(text) ? "未可靠识别 MOQ，已暂填 1" : null,
+    price !== null ? null : "未可靠识别单价，已留空待确认",
+    quantity === null ? "未可靠识别 MOQ，已留空待确认" : null,
+    minimumOrderAmount ? `最低订单金额：${minimumOrderAmount}元（不是 MOQ 数量）` : null,
     prices.length > 1 ? `识别到其他可能价格：${prices.slice(1, 8).map((item) => item.value).join("、")}` : null,
     text ? `识别原文：${text.slice(0, 900)}` : null,
   ].filter(Boolean);
-  const parsedFields = [price > 0, quantity > 1, Boolean(material), Boolean(capacityMatch), taxIncluded !== "unknown"].filter(Boolean).length;
+  const parsedFields = [price !== null, quantity !== null, Boolean(material), Boolean(capacityMatch), taxIncluded !== "unknown"].filter(Boolean).length;
   const confidence = Math.max(0.2, Math.min(0.9, (ocrConfidence / 100) * 0.55 + (parsedFields / 5) * 0.35));
 
   return {
@@ -113,10 +120,14 @@ export function parsePricingOcr(rawText: string, ocrConfidence = 0): FreePricing
     supplier_name: null,
     material,
     capacity: capacityMatch ? `${capacityMatch[1]}${capacityMatch[2].toLowerCase()}` : null,
+    capacity_value: capacityMatch ? toNumber(capacityMatch[1]) : null,
+    capacity_unit: capacityMatch?.[2]?.toLowerCase() ?? "ml",
+    neck_size: neckMatch ? `${neckMatch[1]}牙` : null,
     currency: detectCurrency(text),
     minimum_quantity: quantity,
     maximum_quantity: null,
     unit_price: price,
+    minimum_order_amount: minimumOrderAmount,
     tax_included: taxIncluded,
     trade_term: tradeTerm,
     valid_until: null,

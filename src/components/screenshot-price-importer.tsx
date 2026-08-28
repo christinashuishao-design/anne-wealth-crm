@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { Worker } from "tesseract.js";
 import { ClipboardPaste, ImagePlus, ScanLine, X } from "lucide-react";
-import { saveRecognizedPrice } from "@/app/(crm)/products/actions";
+import { saveRecognizedProduct } from "@/app/(crm)/products/actions";
 import { SearchableSelect } from "@/components/searchable-select";
 import { parsePricingOcr } from "@/lib/free-pricing-ocr";
 
 type Option = { value: string; label: string };
-type Result = { product_name?: string | null; supplier_name?: string | null; material?: string | null; capacity?: string | null; currency: string; minimum_quantity: number; maximum_quantity?: number | null; unit_price: number; tax_included: string; trade_term?: string | null; valid_until?: string | null; notes?: string | null; raw_text: string; confidence: number; source_image_path?: string | null };
+type Result = ReturnType<typeof parsePricingOcr>;
 const field = "mt-1 w-full rounded-lg border border-[#ded5c6] px-3 py-2.5";
 
 async function enhancedTextRegion(image: File) {
@@ -40,7 +40,7 @@ function mergeOcrText(...texts: string[]) {
   }).join("\n");
 }
 
-export function ScreenshotPriceImporter({ products, suppliers }: { products: Option[]; suppliers: Option[] }) {
+export function ScreenshotPriceImporter({ categories, suppliers }: { categories: Option[]; suppliers: Option[] }) {
   const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
   const preview=useMemo(()=>image?URL.createObjectURL(image):"",[image]);
@@ -126,21 +126,23 @@ export function ScreenshotPriceImporter({ products, suppliers }: { products: Opt
         {loading&&progress&&<p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{progress}</p>}
         <button disabled={loading||!image} className="w-full rounded-xl bg-[#173b34] py-3 text-white disabled:opacity-50">{loading?"正在免费识别…":"开始免费识别"}</button>
       </form>:
-      <form action={saveRecognizedPrice} onSubmit={()=>setOpen(false)} className="grid gap-4 p-5 sm:grid-cols-2">
-        <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">免费 OCR 置信度：{Math.round(result.confidence*100)}%。请重点核对价格、币种、MOQ和含税条件。</div>
-        <label className="text-sm sm:col-span-2">关联产品<SearchableSelect name="product_id" options={products} placeholder={result.product_name||"搜索产品"}/></label>
-        <label className="text-sm sm:col-span-2">关联供应商<SearchableSelect name="supplier_id" options={suppliers} placeholder={result.supplier_name||"搜索供应商"}/></label>
-        <label className="text-sm">币种<select className={field} name="currency" defaultValue={result.currency}>{["CNY","USD","EUR","GBP"].map(x=><option key={x}>{x}</option>)}</select></label>
-        <label className="text-sm">单价<input className={field} name="unit_price" type="number" step="0.000001" defaultValue={result.unit_price} required/></label>
-        <label className="text-sm">起订数量<input className={field} name="minimum_quantity" type="number" defaultValue={result.minimum_quantity} required/></label>
-        <label className="text-sm">最高数量（可空）<input className={field} name="maximum_quantity" type="number" defaultValue={result.maximum_quantity||""}/></label>
-        <label className="text-sm">含税<select className={field} name="tax_included" defaultValue={result.tax_included}><option value="unknown">待确认</option><option value="true">含税</option><option value="false">未税</option></select></label>
-        <label className="text-sm">贸易条款<input className={field} name="trade_term" defaultValue={result.trade_term||""}/></label>
-        <label className="text-sm">有效期<input className={field} name="valid_until" type="date" defaultValue={result.valid_until||""}/></label>
-        <label className="text-sm">报价日期<input className={field} name="source_date" type="date" defaultValue={new Date().toISOString().slice(0,10)}/></label>
-        <label className="text-sm sm:col-span-2">备注<textarea className={`${field} min-h-20`} name="notes" defaultValue={[result.material,result.capacity,result.notes].filter(Boolean).join("；")}/></label>
-        <input type="hidden" name="confidence" value={result.confidence}/><input type="hidden" name="raw_text" value={result.raw_text}/><input type="hidden" name="source_image_path" value={result.source_image_path||""}/>
-        <button type="button" onClick={()=>{setResult(null);setImage(null);}} className="rounded-xl border py-3">重新识别</button><button className="rounded-xl bg-[#173b34] py-3 text-white">确认写入价格系统</button>
+      <form action={saveRecognizedProduct} onSubmit={()=>setOpen(false)} className="grid gap-4 p-5 sm:grid-cols-2">
+        <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">识别置信度：{Math.round(result.confidence*100)}%。未识别字段已留空，请确认后保存。</div>
+        <label className="text-sm sm:col-span-2">产品名称*<input className={field} name="product_name" defaultValue={result.product_name||""} required/></label>
+        <label className="text-sm">分类*<SearchableSelect name="category_id" options={categories} placeholder="选择产品分类" required/></label>
+        <label className="text-sm">材质<input className={field} name="material" defaultValue={result.material||""}/></label>
+        <label className="text-sm">容量<input className={field} name="capacity_value" type="number" step="0.01" defaultValue={result.capacity_value??""}/></label>
+        <label className="text-sm">容量单位<select className={field} name="capacity_unit" defaultValue={result.capacity_unit}><option>ml</option><option>g</option><option>L</option><option>oz</option><option>kg</option></select></label>
+        <label className="text-sm">瓶口<input className={field} name="neck_size" defaultValue={result.neck_size||""}/></label>
+        <label className="text-sm">供应商<SearchableSelect name="primary_supplier_id" options={suppliers} placeholder={result.supplier_name||"搜索供应商"}/></label>
+        <label className="text-sm">MOQ<input className={field} name="purchase_moq" type="number" min="0" defaultValue={result.minimum_quantity??""} placeholder="未识别，待确认"/></label>
+        <label className="text-sm">采购单价（人民币）<input className={field} name="purchase_unit_price_cny" type="number" min="0" step="0.0001" defaultValue={result.currency==="CNY"?(result.unit_price??""):""} placeholder="未识别，待确认"/></label>
+        <label className="text-sm">交货时间（天）<input className={field} name="delivery_lead_time_days" type="number" min="0" placeholder="待确认"/></label>
+        <label className="text-sm">成交状态<select className={field} name="commercial_status" defaultValue="未成交">{["未成交","已报价","已打样","已下单","已成交"].map(x=><option key={x}>{x}</option>)}</select></label>
+        <label className="text-sm sm:col-span-2">采购备注<textarea className={`${field} min-h-24`} name="purchase_notes" defaultValue={[result.minimum_order_amount?`最低订单金额：${result.minimum_order_amount}元`:null,result.tax_included==="true"?"含税":result.tax_included==="false"?"未税":null,result.trade_term,result.notes].filter(Boolean).join("；")}/></label>
+        <label className="text-sm sm:col-span-2">特别注意事项<textarea className={`${field} min-h-20`} name="special_notes" placeholder="质量要求、包装要求、易错点等（未识别可留空）"/></label>
+        <input type="hidden" name="product_name_en" value=""/><input type="hidden" name="product_status" value="待整理"/><input type="hidden" name="search_keywords" value=""/>
+        <button type="button" onClick={()=>{setResult(null);setImage(null);}} className="rounded-xl border py-3">重新识别</button><button className="rounded-xl bg-[#173b34] py-3 text-white">确认写入产品资料库</button>
       </form>}
     </div></div>}
   </>;
