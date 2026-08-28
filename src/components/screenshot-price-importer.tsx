@@ -4,13 +4,14 @@ import Image from "next/image";
 import { ClipboardPaste, ImagePlus, ScanLine, X } from "lucide-react";
 import { saveRecognizedPrice } from "@/app/(crm)/products/actions";
 import { SearchableSelect } from "@/components/searchable-select";
+import { parsePricingOcr } from "@/lib/free-pricing-ocr";
 
 type Option = { value: string; label: string };
 type Result = { product_name?: string | null; supplier_name?: string | null; material?: string | null; capacity?: string | null; currency: string; minimum_quantity: number; maximum_quantity?: number | null; unit_price: number; tax_included: string; trade_term?: string | null; valid_until?: string | null; notes?: string | null; raw_text: string; confidence: number; source_image_path?: string | null };
 const field = "mt-1 w-full rounded-lg border border-[#ded5c6] px-3 py-2.5";
 
 export function ScreenshotPriceImporter({ products, suppliers }: { products: Option[]; suppliers: Option[] }) {
-  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
+  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
   const preview=useMemo(()=>image?URL.createObjectURL(image):"",[image]);
 
@@ -47,17 +48,29 @@ export function ScreenshotPriceImporter({ products, suppliers }: { products: Opt
       setError("请先粘贴、拖入或选择一张图片");
       return;
     }
-    const form=new FormData();
-    form.set("image",image,image.name||`clipboard-${Date.now()}.png`);
-    setLoading(true); setError(""); setResult(null);
-    const response=await fetch("/api/pricing/recognize",{method:"POST",body:form});
-    const json=await response.json().catch(()=>({error:"识别服务返回异常"})) as {error?:string;data?:Result}; setLoading(false);
-    if(!response.ok||!json.data){setError(json.error||"识别失败");return;} setResult(json.data);
+    setLoading(true); setProgress("正在加载免费识别引擎…"); setError(""); setResult(null);
+    try {
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker(["chi_sim", "eng"], undefined, {
+        logger: (message) => {
+          if (message.status === "recognizing text") setProgress(`正在识别文字… ${Math.round((message.progress || 0) * 100)}%`);
+          else if (message.status === "loading language traineddata") setProgress("首次使用正在下载中英文识别字库…");
+        },
+      });
+      const recognized = await worker.recognize(image);
+      await worker.terminate();
+      setResult(parsePricingOcr(recognized.data.text, recognized.data.confidence));
+    } catch (reason) {
+      console.error(reason);
+      setError("免费识别加载失败，请检查网络后重试；也可以手动录入价格。");
+    } finally {
+      setLoading(false); setProgress("");
+    }
   }
   return <>
     <button onClick={()=>setOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-[#173b34] bg-white px-4 py-2.5 text-sm text-[#173b34]"><ScanLine size={17}/>截图识别价格</button>
     {open&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white">
-      <header className="flex items-center justify-between border-b p-5"><div><h2 className="text-xl font-semibold">截图识别录入</h2><p className="mt-1 text-xs text-neutral-500">图片会发送至 OpenAI 视觉模型；识别结果需确认后才写入价格系统。</p></div><button onClick={()=>setOpen(false)}><X/></button></header>
+      <header className="flex items-center justify-between border-b p-5"><div><h2 className="text-xl font-semibold">截图识别录入</h2><p className="mt-1 text-xs text-neutral-500">免费 OCR 在当前浏览器处理图片；识别结果需确认后才写入价格系统。</p></div><button onClick={()=>setOpen(false)}><X/></button></header>
       {!result?<form onSubmit={recognize} className="space-y-4 p-5">
         <div
           className="grid min-h-48 cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed border-[#cfc3ae] bg-[#faf7f1] p-4 text-center outline-none transition hover:border-[#173b34] focus:border-[#173b34]"
@@ -72,10 +85,11 @@ export function ScreenshotPriceImporter({ products, suppliers }: { products: Opt
         </div>
         <input ref={fileInput} className="hidden" type="file" accept="image/*" onChange={(event)=>chooseImage(event.target.files?.[0])}/>
         {error&&<p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button disabled={loading||!image} className="w-full rounded-xl bg-[#173b34] py-3 text-white disabled:opacity-50">{loading?"正在识别…":"开始识别"}</button>
+        {loading&&progress&&<p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{progress}</p>}
+        <button disabled={loading||!image} className="w-full rounded-xl bg-[#173b34] py-3 text-white disabled:opacity-50">{loading?"正在免费识别…":"开始免费识别"}</button>
       </form>:
       <form action={saveRecognizedPrice} onSubmit={()=>setOpen(false)} className="grid gap-4 p-5 sm:grid-cols-2">
-        <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">识别置信度：{Math.round(result.confidence*100)}%。请重点核对价格、币种、MOQ和含税条件。</div>
+        <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">免费 OCR 置信度：{Math.round(result.confidence*100)}%。请重点核对价格、币种、MOQ和含税条件。</div>
         <label className="text-sm sm:col-span-2">关联产品<SearchableSelect name="product_id" options={products} placeholder={result.product_name||"搜索产品"}/></label>
         <label className="text-sm sm:col-span-2">关联供应商<SearchableSelect name="supplier_id" options={suppliers} placeholder={result.supplier_name||"搜索供应商"}/></label>
         <label className="text-sm">币种<select className={field} name="currency" defaultValue={result.currency}>{["CNY","USD","EUR","GBP"].map(x=><option key={x}>{x}</option>)}</select></label>
