@@ -18,4 +18,13 @@ describe("parsePricingOcr", () => {
     expect(result.minimum_quantity).toBe(1);
     expect(result.notes).toContain("人工核对");
   });
+
+  it("extracts the primary price and preserves add-on prices from a chat quote", () => {
+    const result = parsePricingOcr("24牙29克350ML实灰色平肩圆瓶（裸瓶无工艺）0.95元/个，24牙实色自带磨砂千秋盖0.55元/个，瓶身喷手感漆另加0.7元/个，盖子喷手感漆另加0.4元/个", 68);
+    expect(result).toMatchObject({ capacity: "350ml", currency: "CNY", unit_price: 0.95 });
+    expect(result.product_name).toContain("350ML");
+    expect(result.notes).toContain("0.55");
+    expect(result.notes).toContain("0.7");
+    expect(result.notes).toContain("0.4");
+  });
 });

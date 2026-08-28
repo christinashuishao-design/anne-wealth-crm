@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import type { Worker } from "tesseract.js";
 import { ClipboardPaste, ImagePlus, ScanLine, X } from "lucide-react";
 import { saveRecognizedPrice } from "@/app/(crm)/products/actions";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -9,6 +10,35 @@ import { parsePricingOcr } from "@/lib/free-pricing-ocr";
 type Option = { value: string; label: string };
 type Result = { product_name?: string | null; supplier_name?: string | null; material?: string | null; capacity?: string | null; currency: string; minimum_quantity: number; maximum_quantity?: number | null; unit_price: number; tax_included: string; trade_term?: string | null; valid_until?: string | null; notes?: string | null; raw_text: string; confidence: number; source_image_path?: string | null };
 const field = "mt-1 w-full rounded-lg border border-[#ded5c6] px-3 py-2.5";
+
+async function enhancedTextRegion(image: File) {
+  const bitmap = await createImageBitmap(image);
+  const sourceWidth = Math.max(1, Math.round(bitmap.width * 0.68));
+  const sourceTop = Math.round(bitmap.height * 0.16);
+  const sourceHeight = Math.max(1, Math.round(bitmap.height * 0.5));
+  const scale = Math.max(1, Math.min(3.5, 2800 / sourceWidth, 2200 / sourceHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("无法创建图片处理画布");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.filter = "grayscale(1) contrast(1.65)";
+  context.drawImage(bitmap, 0, sourceTop, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("图片增强失败")), "image/png"));
+}
+
+function mergeOcrText(...texts: string[]) {
+  const seen = new Set<string>();
+  return texts.flatMap((text) => text.split(/\n+/)).map((line) => line.trim()).filter((line) => {
+    const key = line.replace(/\s+/g, "").toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).join("\n");
+}
 
 export function ScreenshotPriceImporter({ products, suppliers }: { products: Option[]; suppliers: Option[] }) {
   const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null),[image,setImage]=useState<File|null>(null);
@@ -49,21 +79,29 @@ export function ScreenshotPriceImporter({ products, suppliers }: { products: Opt
       return;
     }
     setLoading(true); setProgress("正在加载免费识别引擎…"); setError(""); setResult(null);
+    let worker: Worker | null = null;
     try {
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker(["chi_sim", "eng"], undefined, {
+      const { createWorker, PSM } = await import("tesseract.js");
+      worker = await createWorker(["chi_sim", "eng"], undefined, {
         logger: (message) => {
           if (message.status === "recognizing text") setProgress(`正在识别文字… ${Math.round((message.progress || 0) * 100)}%`);
           else if (message.status === "loading language traineddata") setProgress("首次使用正在下载中英文识别字库…");
         },
       });
-      const recognized = await worker.recognize(image);
-      await worker.terminate();
-      setResult(parsePricingOcr(recognized.data.text, recognized.data.confidence));
+      setProgress("正在放大并增强聊天文字区域…");
+      const enhanced = await enhancedTextRegion(image);
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_COLUMN, preserve_interword_spaces: "1" });
+      const focused = await worker.recognize(enhanced);
+      setProgress("正在检查截图其他区域…");
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT, preserve_interword_spaces: "1" });
+      const full = await worker.recognize(image);
+      const merged = mergeOcrText(focused.data.text, full.data.text);
+      setResult(parsePricingOcr(merged, Math.max(focused.data.confidence, full.data.confidence)));
     } catch (reason) {
       console.error(reason);
       setError("免费识别加载失败，请检查网络后重试；也可以手动录入价格。");
     } finally {
+      await worker?.terminate().catch(() => undefined);
       setLoading(false); setProgress("");
     }
   }

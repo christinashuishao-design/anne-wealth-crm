@@ -61,6 +61,7 @@ function priceCandidates(text: string) {
     const patterns = [
       /(?:单价|价格|报价|采购价|unit\s*price|price)\s*[:=]?\s*(?:RMB|CNY|USD|EUR|GBP|[¥￥$€£])?\s*(\d+(?:\.\d{1,6})?)/ig,
       /(?:RMB|CNY|USD|EUR|GBP|[¥￥$€£])\s*(\d+(?:\.\d{1,6})?)/ig,
+      /(\d+(?:\.\d{1,6})?)\s*(?:元|块)?\s*\/\s*(?:个|只|套|件|pcs?|sets?)/ig,
       /(\d+(?:\.\d{1,6})?)\s*(?:元|块|RMB|CNY|USD|EUR|GBP)\b/ig,
     ];
     for (const pattern of patterns) {
@@ -71,7 +72,17 @@ function priceCandidates(text: string) {
       }
     }
   }
-  return candidates.sort((a, b) => b.score - a.score);
+  return candidates.filter((candidate, index, all) => all.findIndex((item) => item.value === candidate.value && item.line === candidate.line) === index).sort((a, b) => b.score - a.score);
+}
+
+function extractProductName(text: string) {
+  const line = text.split(/\n+/).find((item) => /\d+(?:\.\d+)?\s*(?:元|块)?\s*\//.test(item));
+  if (!line) return null;
+  const candidate = line
+    .split(/(?:RMB|CNY|USD|EUR|GBP|[¥￥$€£])?\s*\d+(?:\.\d+)?\s*(?:元|块)?\s*\//i)[0]
+    .replace(/^(?:报价|产品|品名)\s*[:：]?\s*/i, "")
+    .trim();
+  return candidate.length >= 3 && candidate.length <= 80 ? candidate : null;
 }
 
 export function parsePricingOcr(rawText: string, ocrConfidence = 0): FreePricingResult {
@@ -91,13 +102,14 @@ export function parsePricingOcr(rawText: string, ocrConfidence = 0): FreePricing
     "免费本地 OCR 结果，请人工核对后再保存",
     price ? null : "未可靠识别单价，已暂填 0",
     quantity === 1 && !/(?:MOQ|起订|数量|qty)/i.test(text) ? "未可靠识别 MOQ，已暂填 1" : null,
-    prices.length > 1 ? `识别到其他可能价格：${prices.slice(1, 6).map((item) => item.value).join("、")}` : null,
+    prices.length > 1 ? `识别到其他可能价格：${prices.slice(1, 8).map((item) => item.value).join("、")}` : null,
+    text ? `识别原文：${text.slice(0, 900)}` : null,
   ].filter(Boolean);
   const parsedFields = [price > 0, quantity > 1, Boolean(material), Boolean(capacityMatch), taxIncluded !== "unknown"].filter(Boolean).length;
   const confidence = Math.max(0.2, Math.min(0.9, (ocrConfidence / 100) * 0.55 + (parsedFields / 5) * 0.35));
 
   return {
-    product_name: null,
+    product_name: extractProductName(text),
     supplier_name: null,
     material,
     capacity: capacityMatch ? `${capacityMatch[1]}${capacityMatch[2].toLowerCase()}` : null,
