@@ -6,6 +6,9 @@
     "nodejs_compat"
   ],
   "main": "vinext/server/fetch-handler",
+  "placement": {
+    "hostname": "fxpwgpxhqjdmawcgzsvm.supabase.co"
+  },
   "assets": {
     "directory": "dist/client",
     "not_found_handling": "none",

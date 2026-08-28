@@ -16,9 +16,13 @@ export async function updateSession(request: NextRequest) {
       },
     },
   });
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims verifies the signed access token locally (with cached JWKS for
+  // asymmetric projects). Unlike getUser it does not require a user-record
+  // network request on every internal page navigation.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const isAuthenticated = Boolean(claimsData?.claims?.sub);
   const publicPath = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/auth") || request.nextUrl.pathname.startsWith("/forgot-password") || request.nextUrl.pathname.startsWith("/setup") || request.nextUrl.pathname.startsWith("/api/communications/") || request.nextUrl.pathname.startsWith("/api/cron/");
-  if (!user && !publicPath) return NextResponse.redirect(new URL("/login", request.url));
-  if (user && request.nextUrl.pathname === "/login") return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (!isAuthenticated && !publicPath) return NextResponse.redirect(new URL("/login", request.url));
+  if (isAuthenticated && request.nextUrl.pathname === "/login") return NextResponse.redirect(new URL("/dashboard", request.url));
   return response;
 }
