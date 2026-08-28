@@ -40,7 +40,7 @@ const schema = z.object({
   ),
   special_notes: z.string().optional(),
 });
-async function saveImage(value: FormDataEntryValue | null) {
+async function saveImage(value: FormDataEntryValue | null, local: boolean) {
   if (!(value instanceof File) || !value.size) return null;
   if (!["image/jpeg", "image/png", "image/webp"].includes(value.type))
     throw new Error("仅支持 JPG、PNG、WebP 图片");
@@ -52,15 +52,33 @@ async function saveImage(value: FormDataEntryValue | null) {
           ? "webp"
           : "jpg",
     name = `${crypto.randomUUID()}.${ext}`,
-    dir = path.join(process.cwd(), "data", "uploads", "products");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), Buffer.from(await value.arrayBuffer()));
+    bytes = Buffer.from(await value.arrayBuffer());
+  if (local) {
+    const dir = path.join(process.cwd(), "data", "uploads", "products");
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, name), bytes);
+    return name;
+  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
+    key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("云端图片存储配置缺失");
+  const response = await fetch(`${url}/storage/v1/object/product-images/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      "Content-Type": value.type,
+      "x-upsert": "true",
+    },
+    body: bytes,
+  });
+  if (!response.ok) throw new Error("产品图片上传失败");
   return name;
 }
 export async function createProduct(fd: FormData) {
   const v = schema.parse(Object.fromEntries(fd)),
-    image_path = await saveImage(fd.get("image"));
-  if (isLocalMode()) {
+    local = isLocalMode(),
+    image_path = await saveImage(fd.get("image"), local);
+  if (local) {
     localCreateProduct({ ...v, image_path });
     revalidatePath("/products");
     return;
@@ -70,6 +88,7 @@ export async function createProduct(fd: FormData) {
     .from("products")
     .insert({
       ...v,
+      image_path,
       product_code: `PRD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
     });
   if (error) throw new Error(error.message);
@@ -104,14 +123,18 @@ export async function deleteProducts(ids: string[]) {
 }
 export async function updateProduct(id: string, fd: FormData) {
   const v = schema.parse(Object.fromEntries(fd)),
-    image_path = await saveImage(fd.get("image"));
-  if (isLocalMode()) {
+    local = isLocalMode(),
+    image_path = await saveImage(fd.get("image"), local);
+  if (local) {
     localUpdateProduct(id, { ...v, image_path });
     revalidatePath("/products");
     return;
   }
   const db = await createClient();
-  const { error } = await db.from("products").update(v).eq("id", id);
+  const { error } = await db
+    .from("products")
+    .update(image_path ? { ...v, image_path } : v)
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/products");
 }

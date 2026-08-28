@@ -117,7 +117,11 @@ export function ProductTable({
                   <td className="p-3">
                     {p.image_path ? (
                       <Image
-                        src={`/api/product-images/${p.image_path}`}
+                        src={
+                          process.env.NEXT_PUBLIC_SUPABASE_URL
+                            ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${encodeURIComponent(p.image_path)}`
+                            : `/api/product-images/${p.image_path}`
+                        }
                         alt={p.product_name}
                         width={56}
                         height={56}
