@@ -7,6 +7,7 @@ import { isLocalMode, localRows } from "@/lib/local-db";
 import { ProductTable, type ProductRow } from "@/components/product-table";
 import { ProductImageInput } from "@/components/product-image-input";
 import { SearchableSelect } from "@/components/searchable-select";
+import { ScreenshotPriceImporter } from "@/components/screenshot-price-importer";
 const field = "w-full rounded-lg border border-[#ded5c6] px-3 py-2.5";
 export default async function Products({
   searchParams,
@@ -106,8 +107,7 @@ export default async function Products({
         eyebrow="PRODUCT LIBRARY"
         title="产品资料库"
         description="管理产品图片、规格、供应能力和有效报价。"
-        action={
-          <ModalForm title="新建产品">
+        action={<div className="flex gap-2"><ScreenshotPriceImporter products={(data ?? []).map((p) => ({value:String(p.id),label:String(p.product_name)}))} suppliers={supplierOptions}/><ModalForm title="新建产品">
             <form action={createProduct} className="grid gap-4 sm:grid-cols-2">
               {[
                 ["产品名称*", "product_name"],
@@ -167,6 +167,12 @@ export default async function Products({
                   ))}
                 </select>
               </label>
+              <label className="text-sm">
+                成交状态
+                <select className={field} name="commercial_status">
+                  {["未成交","已报价","已打样","已下单","已成交"].map((x) => <option key={x}>{x}</option>)}
+                </select>
+              </label>
               <label className="text-sm sm:col-span-2">
                 产品主图（JPG/PNG/WebP，最大5MB）
                 <ProductImageInput className={field} />
@@ -223,8 +229,7 @@ export default async function Products({
                 保存产品
               </button>
             </form>
-          </ModalForm>
-        }
+          </ModalForm></div>}
       />
       <form className="flex gap-3 rounded-2xl border bg-white p-4">
         <div className="flex flex-1 items-center rounded-xl border px-3">

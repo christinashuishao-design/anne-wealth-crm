@@ -109,6 +109,12 @@ export function ProductEditButton({
                   ))}
                 </select>
               </label>
+              <label className="text-sm">
+                成交状态
+                <select className={field} name="commercial_status" defaultValue={product.commercial_status || "未成交"}>
+                  {["未成交","已报价","已打样","已下单","已成交"].map((x) => <option key={x}>{x}</option>)}
+                </select>
+              </label>
               <label className="text-sm sm:col-span-2">
                 更换产品主图（JPG/PNG/WebP，最大5MB）
                 <ProductImageInput className={field} />

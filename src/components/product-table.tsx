@@ -14,6 +14,7 @@ export type ProductRow = Record<string, unknown> & {
   capacity_unit?: string;
   neck_size?: string;
   product_status: string;
+  commercial_status?: string;
   image_path?: string;
   purchase_unit_price_cny?: number;
   purchase_notes?: string;
@@ -84,6 +85,7 @@ export function ProductTable({
                 "采购备注",
                 "交货时间",
                 "特别注意事项",
+                "成交状态",
                 "状态",
                 "操作",
               ].map((x) => (
@@ -171,6 +173,9 @@ export function ProductTable({
                   </td>
                   <td className="max-w-64 truncate p-4" title={p.special_notes || ""}>
                     {p.special_notes || "—"}
+                  </td>
+                  <td className="whitespace-nowrap p-4">
+                    <span className={`rounded-full px-2 py-1 ${p.commercial_status === "已成交" ? "bg-emerald-100 text-emerald-800" : p.commercial_status === "已下单" ? "bg-blue-100 text-blue-800" : "bg-neutral-100 text-neutral-700"}`}>{p.commercial_status || "未成交"}</span>
                   </td>
                   <td className="p-4">
                     <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">

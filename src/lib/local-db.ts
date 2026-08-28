@@ -57,6 +57,8 @@ export function localDb() {
     db.exec("alter table products add column delivery_lead_time_days integer");
   if (!productColumns.some((c) => c.name === "special_notes"))
     db.exec("alter table products add column special_notes text");
+  if (!productColumns.some((c) => c.name === "commercial_status"))
+    db.exec("alter table products add column commercial_status text default '未成交'");
   const financeColumns = db
     .prepare("pragma table_info(financial_records)")
     .all() as { name: string }[];

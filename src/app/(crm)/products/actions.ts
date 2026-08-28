@@ -23,6 +23,7 @@ const schema = z.object({
   capacity_unit: z.string(),
   neck_size: z.string().optional(),
   product_status: z.string(),
+  commercial_status: z.enum(["未成交", "已报价", "已打样", "已下单", "已成交"]),
   search_keywords: z.string().optional(),
   purchase_unit_price_cny: z.preprocess(
     (v) => (v === "" ? undefined : v),
@@ -40,6 +41,50 @@ const schema = z.object({
   ),
   special_notes: z.string().optional(),
 });
+
+const recognizedPriceSchema = z.object({
+  product_id: z.string().uuid(),
+  supplier_id: z.string().uuid().optional().or(z.literal("")),
+  source_date: z.string().optional(),
+  currency: z.enum(["CNY", "USD", "EUR", "GBP"]),
+  minimum_quantity: z.coerce.number().int().positive(),
+  maximum_quantity: z.preprocess((v) => v === "" ? undefined : v, z.coerce.number().int().positive().optional()),
+  unit_price: z.coerce.number().nonnegative(),
+  tax_included: z.enum(["true", "false", "unknown"]),
+  trade_term: z.string().optional(),
+  valid_until: z.string().optional(),
+  confidence: z.coerce.number().min(0).max(1).optional(),
+  raw_text: z.string().optional(),
+  source_image_path: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export async function saveRecognizedPrice(fd: FormData) {
+  const v = recognizedPriceSchema.parse(Object.fromEntries(fd));
+  if (isLocalMode()) throw new Error("截图价格录入目前仅支持云端 CRM");
+  const db = await createClient();
+  const { error } = await db.from("product_price_records").insert({
+    product_id: v.product_id,
+    supplier_id: v.supplier_id || null,
+    source_date: v.source_date || new Date().toISOString().slice(0, 10),
+    currency: v.currency,
+    minimum_quantity: v.minimum_quantity,
+    maximum_quantity: v.maximum_quantity || null,
+    unit_price: v.unit_price,
+    tax_included: v.tax_included === "unknown" ? null : v.tax_included === "true",
+    trade_term: v.trade_term || null,
+    valid_until: v.valid_until || null,
+    status: "待核验",
+    confidence: v.confidence,
+    raw_text: v.raw_text,
+    source_image_path: v.source_image_path || null,
+    notes: v.notes,
+  });
+  if (error) throw new Error(error.message);
+  await db.from("products").update({ purchase_unit_price_cny: v.currency === "CNY" ? v.unit_price : undefined, purchase_moq: v.minimum_quantity }).eq("id", v.product_id);
+  revalidatePath("/products");
+  revalidatePath("/pricing");
+}
 async function saveImage(value: FormDataEntryValue | null, local: boolean) {
   if (!(value instanceof File) || !value.size) return null;
   if (!["image/jpeg", "image/png", "image/webp"].includes(value.type))
