@@ -1,3 +1,26 @@
-import { PageHeader } from "@/components/page-header";
-const names:Record<string,string>={contacts:"客户联系人",notifications:"通知中心","follow-ups":"跟进记录","product-categories":"产品分类","supplier-products":"供应商产品",quotations:"供应商报价",payments:"收付款记录","settings/users":"用户管理","settings/roles":"角色权限","settings/audit":"操作日志","imports/history":"导入历史"};
-export default async function Page({params}:{params:Promise<{slug:string[]}>}){const {slug}=await params,key=slug.join("/"),name=names[key]??"Anne CRM";return <div className="space-y-6"><PageHeader title={name} description="该页面已接入统一后台布局，下一迭代继续补充专属操作界面。"/><div className="bg-white border border-[#e7dece] rounded-2xl p-12 text-center text-neutral-500">基础数据库与权限已经就绪。请从客户、产品、项目、供应商、订单或财务模块开始使用。</div></div>}
+import { notFound, redirect } from "next/navigation";
+
+const replacements: Record<string, string> = {
+  contacts: "/customers",
+  notifications: "/tasks",
+  "follow-ups": "/tasks",
+  "product-categories": "/products",
+  "supplier-products": "/products",
+  quotations: "/pricing",
+  payments: "/finance",
+  "imports/history": "/imports",
+  "settings/users": "/communication-connections",
+  "settings/roles": "/communication-connections",
+  "settings/audit": "/communication-connections",
+};
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}) {
+  const { slug } = await params;
+  const replacement = replacements[slug.join("/")];
+  if (replacement) redirect(replacement);
+  notFound();
+}
