@@ -11,7 +11,7 @@ const groups = [
   ["订单管理", Building2, [["全部订单","/orders"],["生产中","/orders?status=生产中"]]],
   ["财务管理", CircleDollarSign, [["财务总览","/finance"],["收付款记录","/payments"],["订单利润","/finance?view=profit"]]],
   ["数据工具", Database, [["数据导入","/imports"],["Lark客户同步","/imports/lark"],["导入历史","/imports/history"]]],
-  ["系统设置", Settings, [["用户管理","/settings/users"],["角色权限","/settings/roles"],["操作日志","/settings/audit"]]],
+  ["系统设置", Settings, [["通信来源","/communication-connections"],["用户管理","/settings/users"],["角色权限","/settings/roles"],["操作日志","/settings/audit"]]],
 ] as const;
 
 export function Sidebar() { return <aside className="w-56 bg-[#173b34] text-white h-screen fixed left-0 top-0 overflow-y-auto hidden lg:block">
