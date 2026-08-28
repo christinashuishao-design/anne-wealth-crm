@@ -3,7 +3,18 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function Page(){
   const db=await createClient();
-  const {data,error}=await db.from("product_price_records").select("*,products(product_name,product_code,commercial_status),suppliers(company_name)").is("deleted_at",null).order("created_at",{ascending:false}).limit(300);
+  const [priceResult,productResult,supplierResult]=await Promise.all([
+    db.from("product_price_records").select("*,products(product_name,product_code,commercial_status),suppliers(company_name)").is("deleted_at",null).order("created_at",{ascending:false}).limit(300),
+    db.from("products").select("id,product_name,product_code,commercial_status,purchase_unit_price_cny,purchase_moq,primary_supplier_id,purchase_notes,created_at").is("deleted_at",null).not("purchase_unit_price_cny","is",null).order("created_at",{ascending:false}).limit(300),
+    db.from("suppliers").select("id,company_name").is("deleted_at",null),
+  ]);
+  const recordedIds=new Set((priceResult.data||[]).map((row)=>row.product_id));
+  const supplierNames=new Map((supplierResult.data||[]).map((supplier)=>[supplier.id,supplier.company_name]));
+  const fallbackRows=(productResult.data||[]).filter((product)=>!recordedIds.has(product.id)).map((product)=>({
+    id:`product-${product.id}`,product_id:product.id,products:{product_name:product.product_name,product_code:product.product_code,commercial_status:product.commercial_status},suppliers:{company_name:supplierNames.get(product.primary_supplier_id)||null},currency:"CNY",minimum_quantity:product.purchase_moq||1,maximum_quantity:null,unit_price:product.purchase_unit_price_cny,tax_included:null,trade_term:null,source_date:product.created_at?.slice(0,10),valid_until:null,status:"待核验",notes:product.purchase_notes,
+  }));
+  const data=[...(priceResult.data||[]),...fallbackRows];
+  const error=priceResult.error||productResult.error||supplierResult.error;
   return <div className="space-y-6"><PageHeader eyebrow="PRICING SYSTEM" title="价格系统" description="集中管理采购价格阶梯、来源、有效期和核验状态，给客户报价前可快速对比。"/>
     {error?<div className="rounded-xl bg-red-50 p-4 text-red-700">{error.message}</div>:<div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full text-sm"><thead className="bg-[#faf7f1]"><tr>{["产品","供应商","成交状态","数量区间","采购单价","建议报价(30%毛利)","建议报价(40%毛利)","含税","条款","来源日期","有效期","核验状态"].map(x=><th className="whitespace-nowrap p-3 text-left" key={x}>{x}</th>)}</tr></thead><tbody>{(data||[]).map((r)=><tr className="border-t" key={r.id}><td className="p-3"><b>{r.products?.product_name||"—"}</b><small className="block text-neutral-400">{r.products?.product_code}</small></td><td className="p-3">{r.suppliers?.company_name||"—"}</td><td className="p-3">{r.products?.commercial_status||"未成交"}</td><td className="p-3">{r.minimum_quantity}{r.maximum_quantity?`–${r.maximum_quantity}`:"+"}</td><td className="p-3 font-semibold">{r.currency} {Number(r.unit_price).toLocaleString(undefined,{maximumFractionDigits:6})}</td><td className="p-3 text-blue-700">{r.currency} {(Number(r.unit_price)/0.7).toFixed(4)}</td><td className="p-3 text-emerald-700">{r.currency} {(Number(r.unit_price)/0.6).toFixed(4)}</td><td className="p-3">{r.tax_included===null?"待确认":r.tax_included?"含税":"未税"}</td><td className="p-3">{r.trade_term||"—"}</td><td className="p-3">{r.source_date||"—"}</td><td className="p-3">{r.valid_until||"—"}</td><td className="p-3"><span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">{r.status}</span></td></tr>)}</tbody></table>{!data?.length&&<div className="p-12 text-center text-neutral-400">还没有价格记录，可从产品页上传截图识别。</div>}</div>}
   </div>;

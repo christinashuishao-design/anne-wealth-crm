@@ -101,13 +101,28 @@ export async function saveRecognizedProduct(fd: FormData) {
       const db = await createClient();
       const { data: { user } } = await db.auth.getUser();
       if (!user) return { ok: false, message: "登录已失效，请重新登录" };
-      const { error } = await db.from("products").insert({
+      const { data: product, error } = await db.from("products").insert({
         ...v,
         primary_supplier_id: v.primary_supplier_id || null,
         image_path: null,
         product_code: `PRD-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-      });
+      }).select("id").single();
       if (error) return { ok: false, message: `保存失败：${error.message}` };
+      if (v.purchase_unit_price_cny !== undefined) {
+        const { error: priceError } = await db.from("product_price_records").insert({
+          product_id: product.id,
+          supplier_id: v.primary_supplier_id || null,
+          source_date: new Date().toISOString().slice(0, 10),
+          currency: "CNY",
+          minimum_quantity: v.purchase_moq || 1,
+          maximum_quantity: null,
+          unit_price: v.purchase_unit_price_cny,
+          tax_included: null,
+          status: "待核验",
+          notes: v.purchase_notes || "截图识别后写入产品资料库",
+        });
+        if (priceError) return { ok: false, message: `产品已保存，但价格同步失败：${priceError.message}` };
+      }
     }
     revalidatePath("/products");
     revalidatePath("/pricing");
