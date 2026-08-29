@@ -1,0 +1,13 @@
+{
+  "crmUrl": "https://anne-wealth-crm.christinashuishao.workers.dev",
+  "secretEnv": "COMMUNICATION_SYNC_SECRET",
+  "initialLookbackHours": 24,
+  "emailAccounts": [
+    { "source": "email:anne@skincarepkg.com", "email": "anne@skincarepkg.com", "host": "imap.gmail.com", "passwordEnv": "MAIL_ANNE_SKINCAREPKG_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "[Gmail]/Sent Mail", "direction": "outbound" }] },
+    { "source": "email:christina@skincarepkg.com", "email": "christina@skincarepkg.com", "host": "imap.gmail.com", "passwordEnv": "MAIL_CHRISTINA_SKINCAREPKG_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "[Gmail]/Sent Mail", "direction": "outbound" }] },
+    { "source": "email:christina.s@chinabeautytools.com", "email": "christina.s@chinabeautytools.com", "host": "imap.larksuite.com", "passwordEnv": "MAIL_CHRISTINA_BEAUTYTOOLS_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "Sent", "direction": "outbound" }] },
+    { "source": "email:christina.s@acfoldingbox.com", "email": "christina.s@acfoldingbox.com", "host": "imap.larksuite.com", "passwordEnv": "MAIL_CHRISTINA_ACFOLDINGBOX_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "Sent", "direction": "outbound" }] },
+    { "source": "email:anne@oceanpackagings.com", "email": "anne@oceanpackagings.com", "host": "imap.qiye.aliyun.com", "passwordEnv": "MAIL_ANNE_OCEANPACKAGINGS_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "Sent", "direction": "outbound" }] },
+    { "source": "email:angela.s@skincareform.com", "email": "angela.s@skincareform.com", "host": "imap.larksuite.com", "passwordEnv": "MAIL_ANGELA_SKINCAREFORM_PASSWORD", "folders": [{ "name": "INBOX", "direction": "inbound" }, { "name": "Sent", "direction": "outbound" }] }
+  ]
+}
