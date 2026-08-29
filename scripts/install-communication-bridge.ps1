@@ -11,11 +11,11 @@ $required = @(
   "MAIL_ANNE_OCEANPACKAGINGS_PASSWORD",
   "MAIL_ANGELA_SKINCAREFORM_PASSWORD"
 )
-$missing = $required | Where-Object { -not [Environment]::GetEnvironmentVariable($_, "Process") }
-if ($missing.Count) { throw "以下邮箱尚未填写应用专用密码：$($missing -join ', ')" }
+$configured = $required | Where-Object { [Environment]::GetEnvironmentVariable($_, "Process") }
+if (-not $configured.Count) { throw "至少需要填写一个邮箱的应用专用密码" }
 $starter = Join-Path $projectDir "scripts\start-communication-bridge.ps1"
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$starter`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit (New-TimeSpan -Days 30)
-Register-ScheduledTask -TaskName "Anne CRM Communication Bridge" -Action $action -Trigger $trigger -Settings $settings -Description "只读同步企业邮箱到 Anne CRM" -Force | Out-Null
-Write-Output "已安装 Anne CRM 本机通信桥接，将在登录 Windows 后自动运行。"
+$runCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$starter`""
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+New-Item -Path $runKey -Force | Out-Null
+Set-ItemProperty -Path $runKey -Name "AnneCRMCommunicationBridge" -Value $runCommand -Type String
+Write-Output "已安装 Anne CRM 本机通信桥接，将在当前用户登录 Windows 后自动运行。"

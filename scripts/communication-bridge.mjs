@@ -47,11 +47,13 @@ async function postEvent(config, event) {
 }
 
 async function syncFolder(config, account, folder, state) {
+  const configuredPassword = process.env[account.passwordEnv];
+  if (!configuredPassword) return 0;
   const client = new ImapFlow({
     host: account.host,
     port: account.port || 993,
     secure: true,
-    auth: { user: account.email, pass: env(account.passwordEnv) },
+    auth: { user: account.email, pass: account.host === "imap.gmail.com" ? configuredPassword.replace(/\s/g, "") : configuredPassword },
     logger: false,
   });
   const stateKey = `${account.source}|${folder.name}`;
