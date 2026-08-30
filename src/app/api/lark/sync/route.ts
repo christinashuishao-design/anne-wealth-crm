@@ -2,10 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasLocalSession } from "@/lib/local-session";
 import { isLocalMode } from "@/lib/local-db";
 import { syncLarkCustomers } from "@/lib/lark";
+import { createClient } from "@/lib/supabase/server";
+import { syncLarkCloudCustomers } from "@/lib/lark-cloud";
 
 export async function POST(request: NextRequest) {
-  if (!isLocalMode() || !(await hasLocalSession()))
-    return NextResponse.redirect(new URL("/login", request.url), 303);
+  if (!isLocalMode()) {
+    const bearer = request.headers.get("authorization");
+    const cronAuthorized = Boolean(process.env.LARK_SYNC_SECRET && bearer === `Bearer ${process.env.LARK_SYNC_SECRET}`);
+    const { data: { user } } = await (await createClient()).auth.getUser();
+    if (!user && !cronAuthorized) return NextResponse.redirect(new URL("/login", request.url), 303);
+    try {
+      const result = await syncLarkCloudCustomers();
+      if (cronAuthorized) return NextResponse.json({ ok: true, ...result });
+      const target = new URL("/imports/lark", request.url);
+      for (const [key, value] of Object.entries(result)) if (key !== "failures") target.searchParams.set(key === "total" ? "synced" : key, String(value));
+      return NextResponse.redirect(target, 303);
+    } catch (error) {
+      if (cronAuthorized) return NextResponse.json({ error: error instanceof Error ? error.message : "同步失败" }, { status: 500 });
+      const target = new URL("/imports/lark", request.url);
+      target.searchParams.set("error", error instanceof Error ? error.message : "同步失败");
+      return NextResponse.redirect(target, 303);
+    }
+  }
+  if (!(await hasLocalSession())) return NextResponse.redirect(new URL("/login", request.url), 303);
 
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") || "");

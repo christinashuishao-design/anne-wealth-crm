@@ -1,7 +1,77 @@
-import Link from "next/link";import { DatabaseZap,RefreshCw,ShieldCheck,CloudAlert } from "lucide-react";import { PageHeader } from "@/components/page-header";import { isLocalMode } from "@/lib/local-db";import { saveConnection } from "./actions";import { dateTime } from "@/lib/utils";
-const field="mt-1 w-full border border-[#ded5c6] rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#c79f52]/30";
-type FailureDetail={recordId:string;companyName:string;reason:string};
-function failureDetails(value:unknown):FailureDetail[]{try{return value?JSON.parse(String(value)) as FailureDetail[]:[]}catch{return[]}}
-export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}){const p=await searchParams;if(!isLocalMode())return <div className="space-y-6"><PageHeader eyebrow="LARK SYNC" title="Lark 多维表格客户同步" description="管理 Lark / 飞书多维表格客户数据。"/><section className="rounded-2xl border border-amber-200 bg-white p-8"><div className="flex items-start gap-4"><div className="rounded-full bg-amber-50 p-3 text-amber-700"><CloudAlert size={24}/></div><div><h2 className="text-lg font-semibold text-[#173b34]">云端直接同步尚未接入</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600">当前 Lark 同步功能使用电脑本地数据库，不能在 Cloudflare 云端 CRM 中运行。为保护客户数据，本页已停止调用本地模块，不会再导致整页崩溃。</p><p className="mt-2 text-sm text-neutral-600">目前请先从 Lark 导出 Excel 或 CSV，再通过“数据导入”上传。云端 Lark API 连接需要单独建立安全的服务器端连接与凭据存储。</p><Link href="/imports" className="mt-5 inline-flex rounded-xl bg-[#173b34] px-5 py-3 text-sm text-white">前往数据导入</Link></div></div></section></div>;const {getLarkConnection,larkSyncRuns}=await import("@/lib/lark");const c=getLarkConnection(),runs=larkSyncRuns();const mapping=c?JSON.parse(c.field_mapping) as Record<string,string>:{};return <div className="space-y-6"><PageHeader eyebrow="LARK SYNC" title="Lark 多维表格客户同步" description="仅新增 CRM 中不存在的客户；已有客户及其项目关联保持不变。"/>{p.error&&<div className="bg-red-50 text-red-700 rounded-xl p-4">{p.error}</div>}{p.saved&&<div className="bg-emerald-50 text-emerald-700 rounded-xl p-4">连接测试成功，配置已加密保存在本机。</div>}{p.synced&&<div className="bg-emerald-50 text-emerald-700 rounded-xl p-4">同步完成：读取 {p.synced}，新增 {p.created}，已有保持不变 {p.unchanged||0}，跳过空白行 {p.skipped||0}，失败 {p.failed}。</div>}
-<section className="grid xl:grid-cols-[1.4fr_.6fr] gap-6"><div className="bg-white border border-[#e7dece] rounded-2xl p-6"><h2 className="font-semibold text-[#173b34] flex gap-2"><DatabaseZap size={19}/>连接设置</h2><form action={saveConnection} className="mt-5 grid sm:grid-cols-2 gap-4"><label className="text-sm">连接名称<input className={field} name="name" defaultValue={c?.name||"客户资料总表"} required/></label><label className="text-sm">平台<select className={field} name="region" defaultValue={c?.region||"feishu"}><option value="feishu">飞书中国版</option><option value="lark">Lark 国际版</option></select></label><label className="text-sm">App ID<input className={field} name="appId" defaultValue={c?.app_id||""} required placeholder="cli_..."/></label><label className="text-sm">App Secret<input className={field} name="appSecret" type="password" required placeholder="保存后加密"/></label><label className="text-sm">Base App Token<input className={field} name="baseToken" defaultValue={c?.base_token||""} required placeholder="bascn..."/></label><label className="text-sm">Table ID<input className={field} name="tableId" defaultValue={c?.table_id||""} required placeholder="tbl..."/></label><div className="sm:col-span-2 border-t pt-5 mt-2"><h3 className="font-medium">字段映射（已按截图预填）</h3></div>{[["公司名称*","company_name"],["客户类型","customer_type"],["我司产品","business_products"],["客户阶段","stage"],["询盘等级","inquiry_grade"],["邮件内容","email_content"],["联系人","contact_name"],["邮箱","email"],["职位","position"],["社媒","social_media"],["电话","phone"],["最近沟通情况","latest_result"],["下一步跟进","next_action"],["提醒跟进","follow_up_reminder"],["跟进打卡","follow_up_checkin"],["创建时间","lark_created_at"],["最后跟进时间","last_follow_up_at"],["背调","background_summary"],["客户规模","company_size"],["国家","country"],["网站","website"]].map(([label,name])=><label className="text-sm" key={name}>{label}<input className={field} name={name} required={name==="company_name"} defaultValue={mapping[name]||label.replace("*","")}/></label>)}<div className="sm:col-span-2 flex gap-2 text-xs text-neutral-500"><ShieldCheck size={15}/>App Secret 使用本地会话密钥 AES-256-GCM 加密保存。</div><button className="sm:col-span-2 bg-[#173b34] text-white rounded-xl py-3">保存并测试连接</button></form></div>
-<aside className="space-y-5"><div className="bg-white border border-[#e7dece] rounded-2xl p-6"><h2 className="font-semibold text-[#173b34]">同步状态</h2><div className="mt-4 text-sm text-neutral-500">上次同步：{dateTime(c?.last_synced_at)}</div>{c?<form action="/api/lark/sync" method="post"><input type="hidden" name="connectionId" value={c.id}/><button type="submit" className="mt-5 w-full bg-[#b18436] text-white rounded-xl py-3 flex items-center justify-center gap-2"><RefreshCw size={16}/>同步新增客户</button></form>:<p className="mt-4 text-sm text-amber-700">请先保存并测试连接。</p>}</div><div className="bg-white border border-[#e7dece] rounded-2xl p-6"><h2 className="font-semibold text-[#173b34]">同步历史</h2><div className="mt-3 space-y-3">{runs.length?runs.map(r=>{const details=failureDetails(r.failure_details);return <div className="border-b pb-3 text-sm" key={String(r.id)}><div className="flex justify-between gap-3"><b>{String(r.status)}</b><span className="text-neutral-400 whitespace-nowrap">{dateTime(String(r.started_at))}</span></div><div className="text-neutral-500 mt-1">新增 {String(r.created_records)} · 已有不变 {String(r.unchanged_records||0)} · 跳过 {String(r.skipped_records||0)} · 失败 {String(r.failed_records)}</div>{details.length>0&&<details className="mt-2 rounded-lg bg-amber-50 p-2 text-amber-800"><summary className="cursor-pointer font-medium">查看未导入明细（{details.length}）</summary><div className="mt-2 max-h-56 space-y-2 overflow-auto">{details.map((d,index)=><div key={`${d.recordId}-${index}`} className="border-t border-amber-100 pt-2"><div>{d.companyName}</div><div className="text-xs opacity-75">{d.reason} · {d.recordId}</div></div>)}</div></details>}</div>}):<p className="text-sm text-neutral-400">还没有同步记录</p>}</div></div></aside></section></div>}
+import { Cloud, DatabaseZap, RefreshCw, ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { isLocalMode } from "@/lib/local-db";
+import { larkCloudConfig } from "@/lib/lark-cloud";
+import { dateTime } from "@/lib/utils";
+import { saveConnection } from "./actions";
+
+const field = "mt-1 w-full border border-[#ded5c6] rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#c79f52]/30";
+const mappingFields = [
+  ["公司名称*", "company_name"], ["客户类型", "customer_type"], ["我司产品", "business_products"], ["客户阶段", "stage"],
+  ["询盘等级", "inquiry_grade"], ["邮件内容", "email_content"], ["联系人", "contact_name"], ["邮箱", "email"],
+  ["职位", "position"], ["社媒", "social_media"], ["电话", "phone"], ["最近沟通情况", "latest_result"],
+  ["下一步跟进", "next_action"], ["提醒跟进", "follow_up_reminder"], ["跟进打卡", "follow_up_checkin"],
+  ["创建时间", "lark_created_at"], ["最后跟进时间", "last_follow_up_at"], ["背调", "background_summary"],
+  ["客户规模", "company_size"], ["国家", "country"], ["网站", "website"],
+] as const;
+
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const p = await searchParams;
+  if (!isLocalMode()) {
+    const config = larkCloudConfig();
+    return <div className="space-y-6">
+      <PageHeader eyebrow="LARK SYNC" title="Lark 多维表格客户同步" description="Cloudflare 云端直接读取 Lark，并增量新增 CRM 中不存在的客户。" />
+      {p.error && <div className="rounded-xl bg-red-50 p-4 text-red-700">{p.error}</div>}
+      {p.synced && <div className="rounded-xl bg-emerald-50 p-4 text-emerald-700">同步完成：读取 {p.synced}，新增 {p.created || 0}，已有保持不变 {p.unchanged || 0}，跳过 {p.skipped || 0}，失败 {p.failed || 0}。</div>}
+      <section className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
+        <div className="rounded-2xl border border-[#e7dece] bg-white p-7">
+          <h2 className="flex items-center gap-2 font-semibold text-[#173b34]"><Cloud size={19} />云端直接同步</h2>
+          <div className={`mt-5 rounded-xl p-4 text-sm ${config.configured ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>{config.configured ? "Lark 服务端凭据已配置，可以直接同步。" : "同步代码已接入，等待配置 Lark 服务端凭据。"}</div>
+          <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+            <div className="rounded-xl bg-[#faf7f1] p-3"><dt className="text-neutral-500">平台</dt><dd className="mt-1 font-medium">{config.region === "feishu" ? "飞书中国版" : "Lark 国际版"}</dd></div>
+            <div className="rounded-xl bg-[#faf7f1] p-3"><dt className="text-neutral-500">App ID</dt><dd className="mt-1 font-medium">{config.appIdHint}</dd></div>
+            <div className="rounded-xl bg-[#faf7f1] p-3"><dt className="text-neutral-500">Base Token</dt><dd className="mt-1 font-medium">{config.baseTokenHint}</dd></div>
+            <div className="rounded-xl bg-[#faf7f1] p-3"><dt className="text-neutral-500">Table ID</dt><dd className="mt-1 font-medium">{config.tableIdHint}</dd></div>
+          </dl>
+          <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-neutral-500"><ShieldCheck size={16} className="mt-0.5 shrink-0" />App Secret 仅保存在 Cloudflare Secret；页面、浏览器和数据库都不会显示或保存明文。</div>
+        </div>
+        <aside className="rounded-2xl border border-[#e7dece] bg-white p-7">
+          <h2 className="font-semibold text-[#173b34]">同步操作</h2>
+          <p className="mt-3 text-sm leading-6 text-neutral-600">只新增 CRM 中不存在的客户；已有客户、项目关联和跟进记录不会被覆盖、恢复或删除。</p>
+          <form action="/api/lark/sync" method="post"><button disabled={!config.configured} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#b18436] py-3 text-white disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={16} />立即云端同步</button></form>
+          {!config.configured && <p className="mt-3 text-xs text-amber-700">需要 LARK_APP_ID、LARK_APP_SECRET、LARK_BASE_TOKEN 和 LARK_TABLE_ID。</p>}
+        </aside>
+      </section>
+    </div>;
+  }
+
+  const { getLarkConnection, larkSyncRuns } = await import("@/lib/lark");
+  const connection = getLarkConnection(), runs = larkSyncRuns();
+  const mapping = connection ? JSON.parse(connection.field_mapping) as Record<string, string> : {};
+  return <div className="space-y-6">
+    <PageHeader eyebrow="LARK SYNC" title="Lark 多维表格客户同步" description="本机模式：仅新增 CRM 中不存在的客户。" />
+    {p.error && <div className="rounded-xl bg-red-50 p-4 text-red-700">{p.error}</div>}
+    {p.saved && <div className="rounded-xl bg-emerald-50 p-4 text-emerald-700">连接测试成功，配置已加密保存在本机。</div>}
+    {p.synced && <div className="rounded-xl bg-emerald-50 p-4 text-emerald-700">同步完成：读取 {p.synced}，新增 {p.created || 0}，已有保持不变 {p.unchanged || 0}，跳过 {p.skipped || 0}，失败 {p.failed || 0}。</div>}
+    <section className="grid gap-6 xl:grid-cols-[1.4fr_.6fr]">
+      <div className="rounded-2xl border border-[#e7dece] bg-white p-6">
+        <h2 className="flex gap-2 font-semibold text-[#173b34]"><DatabaseZap size={19} />连接设置</h2>
+        <form action={saveConnection} className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="text-sm">连接名称<input className={field} name="name" defaultValue={connection?.name || "客户资料总表"} required /></label>
+          <label className="text-sm">平台<select className={field} name="region" defaultValue={connection?.region || "feishu"}><option value="feishu">飞书中国版</option><option value="lark">Lark 国际版</option></select></label>
+          <label className="text-sm">App ID<input className={field} name="appId" defaultValue={connection?.app_id || ""} required /></label>
+          <label className="text-sm">App Secret<input className={field} name="appSecret" type="password" required /></label>
+          <label className="text-sm">Base App Token<input className={field} name="baseToken" defaultValue={connection?.base_token || ""} required /></label>
+          <label className="text-sm">Table ID<input className={field} name="tableId" defaultValue={connection?.table_id || ""} required /></label>
+          <div className="border-t pt-5 sm:col-span-2"><h3 className="font-medium">字段映射</h3></div>
+          {mappingFields.map(([label, name]) => <label className="text-sm" key={name}>{label}<input className={field} name={name} required={name === "company_name"} defaultValue={mapping[name] || label.replace("*", "")} /></label>)}
+          <button className="rounded-xl bg-[#173b34] py-3 text-white sm:col-span-2">保存并测试连接</button>
+        </form>
+      </div>
+      <aside className="space-y-5">
+        <div className="rounded-2xl border border-[#e7dece] bg-white p-6"><h2 className="font-semibold text-[#173b34]">同步状态</h2><div className="mt-4 text-sm text-neutral-500">上次同步：{dateTime(connection?.last_synced_at)}</div>{connection ? <form action="/api/lark/sync" method="post"><input type="hidden" name="connectionId" value={connection.id} /><button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#b18436] py-3 text-white"><RefreshCw size={16} />同步新增客户</button></form> : <p className="mt-4 text-sm text-amber-700">请先保存并测试连接。</p>}</div>
+        <div className="rounded-2xl border border-[#e7dece] bg-white p-6"><h2 className="font-semibold text-[#173b34]">同步历史</h2><div className="mt-3 space-y-2 text-sm text-neutral-500">{runs.length ? runs.slice(0, 10).map((run) => <div className="border-b py-2" key={String(run.id)}>{String(run.status)} · 新增 {String(run.created_records || 0)} · {dateTime(String(run.started_at))}</div>) : "还没有同步记录"}</div></div>
+      </aside>
+    </section>
+  </div>;
+}

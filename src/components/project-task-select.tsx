@@ -46,6 +46,7 @@ export function ProjectTaskSelect({
           className="w-full px-2 py-2.5 outline-none"
           onChange={(event) => {
             setTitle(event.target.value);
+            setOpportunityId("");
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
@@ -56,7 +57,7 @@ export function ProjectTaskSelect({
         <ChevronDown size={16} />
       </div>
       {open && (
-        <div className="absolute z-[90] mt-1 max-h-64 w-full overflow-auto rounded-xl border bg-white p-1 shadow-xl">
+        <div className="mt-2 max-h-48 w-full overflow-auto rounded-xl border bg-white p-1 shadow-sm">
           {filtered.map((project) => (
             <button
               className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f5efe5]"
