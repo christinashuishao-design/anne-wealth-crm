@@ -6,6 +6,7 @@ import { ModalForm } from "@/components/modal-form";
 import { createTask } from "./actions";
 import { SearchableSelect } from "@/components/searchable-select";
 import { ProjectTaskSelect, type ProjectTaskOption } from "@/components/project-task-select";
+import { TaskCreateForm } from "@/components/task-create-form";
 import { shanghaiDateKey, shanghaiDateTimeInput } from "@/lib/utils";
 
 export default async function Page({
@@ -119,7 +120,7 @@ export default async function Page({
         eyebrow="FOLLOW UP"
         action={
           <ModalForm title="新建任务">
-            <form action={createTask} className="grid gap-4 sm:grid-cols-2">
+            <TaskCreateForm action={createTask}>
               <label className="text-sm sm:col-span-2">
                 任务名称*
                 <ProjectTaskSelect projects={projects} />
@@ -182,10 +183,7 @@ export default async function Page({
                 自动规则
                 <input className={field} name="auto_rule" placeholder="选填" />
               </label>
-              <button className="rounded-xl bg-[#173b34] py-3 text-white sm:col-span-2">
-                保存任务
-              </button>
-            </form>
+            </TaskCreateForm>
           </ModalForm>
         }
         title={
