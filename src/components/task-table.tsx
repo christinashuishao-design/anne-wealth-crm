@@ -75,10 +75,10 @@ export function TaskTable({
           批量删除
         </button>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white lg:overflow-visible">
         {rows.length ? (
           <table className="w-full text-sm">
-            <thead className="bg-[#faf7f1]">
+            <thead className="sticky top-16 z-10 bg-[#faf7f1] shadow-[0_1px_0_#e7dece]">
               <tr>
                 <th className="w-12 p-3 text-center">
                   <input
