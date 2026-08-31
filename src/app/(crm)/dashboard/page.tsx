@@ -501,8 +501,22 @@ function topCountryClocks(countries: string[]) {
     const key = country.trim().toLowerCase();
     if (countryZones[key]) counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return [...counts.entries()]
+  const customerKeys = [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([key]) => ({ country: countryZones[key].label, timeZone: countryZones[key].zone }));
+    .map(([key]) => key);
+  const importantKeys = [
+    "china",
+    "united states",
+    "uk",
+    "france",
+    "uae",
+    "india",
+    "australia",
+    "canada",
+  ];
+  const keys = [...new Set([...importantKeys, ...customerKeys])].slice(0, 8);
+  return keys.map((key) => ({
+    country: countryZones[key].label,
+    timeZone: countryZones[key].zone,
+  }));
 }

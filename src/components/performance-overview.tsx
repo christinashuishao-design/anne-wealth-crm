@@ -17,6 +17,24 @@ const emptyGoals: Goals = {
   yearProfit: 0,
 };
 
+function completeMonthlyGoals(goals: Goals): Goals {
+  return {
+    ...goals,
+    monthSales:
+      goals.monthSales > 0
+        ? goals.monthSales
+        : goals.yearSales > 0
+          ? Math.round((goals.yearSales / 12) * 100) / 100
+          : 0,
+    monthProfit:
+      goals.monthProfit > 0
+        ? goals.monthProfit
+        : goals.yearProfit > 0
+          ? Math.round((goals.yearProfit / 12) * 100) / 100
+          : 0,
+  };
+}
+
 export function PerformanceOverview({
   monthSales,
   yearSales,
@@ -37,7 +55,7 @@ export function PerformanceOverview({
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("anne-performance-goals");
-      if (saved) setGoals({ ...emptyGoals, ...JSON.parse(saved) });
+      if (saved) setGoals(completeMonthlyGoals({ ...emptyGoals, ...JSON.parse(saved) }));
     } catch {}
   }, []);
 
@@ -47,8 +65,9 @@ export function PerformanceOverview({
   }, []);
 
   function saveGoals(next: Goals) {
-    setGoals(next);
-    window.localStorage.setItem("anne-performance-goals", JSON.stringify(next));
+    const completed = completeMonthlyGoals(next);
+    setGoals(completed);
+    window.localStorage.setItem("anne-performance-goals", JSON.stringify(completed));
     setEditing(false);
   }
 
@@ -143,7 +162,7 @@ function ProgressCard({
   actual: number;
   target: number;
 }) {
-  const percentage = target > 0 ? Math.round((actual / target) * 100) : 0;
+  const percentage = target > 0 ? Math.max(0, Math.round((actual / target) * 100)) : 0;
   const reached = target > 0 && actual >= target;
   return (
     <div className="bg-white p-5">
@@ -208,7 +227,9 @@ function GoalEditor({
         }}
       >
         <h2 className="text-lg font-semibold text-[#173b34]">设置业绩与利润目标</h2>
-        <p className="mt-1 text-sm text-neutral-500">金额单位：人民币</p>
+        <p className="mt-1 text-sm text-neutral-500">
+          金额单位：人民币。月度目标留空时，自动按年度目标 ÷ 12 计算。
+        </p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {fields.map((field) => (
             <label className="text-sm" key={field.key}>
