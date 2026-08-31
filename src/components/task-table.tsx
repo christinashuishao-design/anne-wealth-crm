@@ -140,7 +140,7 @@ export function TaskTable({
       <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white">
         {rows.length ? (
           <table className="w-full min-w-[1420px] table-fixed text-sm">
-            <thead className="sticky top-16 z-10 bg-[#faf7f1] shadow-[0_1px_0_#e7dece]">
+            <thead className="sticky top-0 z-10 bg-[#faf7f1] shadow-[0_1px_0_#e7dece]">
               <tr>
                 <th className="w-12 p-3 text-center">
                   <input
