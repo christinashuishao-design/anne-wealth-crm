@@ -3,7 +3,11 @@ import { PageHeader } from "@/components/page-header";
 import { ManagedEntityTable } from "@/components/managed-entity-table";
 import { isLocalMode, localRows } from "@/lib/local-db";
 import { EntityCreateButton } from "@/components/entity-create-button";
-export default async function Page() {
+import { OpportunityBoard, QuotedFollowUpWorkspace } from "@/components/opportunity-workspaces";
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string }> }) {
+  const params = await searchParams;
+  const workspace = params.view === "board" ? "board" : params.status === "已报价" ? "quoted" : "all";
   let data: Record<string, unknown>[];
   let customers: Record<string, unknown>[];
   if (isLocalMode()) {
@@ -41,7 +45,7 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="OPPORTUNITIES"
+        eyebrow={workspace === "board" ? "PROJECT PIPELINE" : workspace === "quoted" ? "QUOTE FOLLOW-UP" : "OPPORTUNITIES"}
         action={
           <EntityCreateButton
             table="opportunities"
@@ -90,10 +94,14 @@ export default async function Page() {
             ]}
           />
         }
-        title="询盘与项目"
-        description="查看、编辑和批量管理询盘项目。"
+        title={workspace === "board" ? "项目看板" : workspace === "quoted" ? "报价后待回复" : "全部项目"}
+        description={workspace === "board" ? "按阶段查看项目分布，快速发现推进堵点。" : workspace === "quoted" ? "聚焦已报价项目，按照等待时间安排客户跟进。" : "集中检索、编辑和批量管理全部询盘项目。"}
       />
-      <ManagedEntityTable
+      {workspace === "board" ? (
+        <OpportunityBoard rows={displayData as (Record<string, unknown> & { id: string })[]}/>
+      ) : workspace === "quoted" ? (
+        <QuotedFollowUpWorkspace rows={displayData as (Record<string, unknown> & { id: string })[]}/>
+      ) : <ManagedEntityTable
         table="opportunities"
         label="项目"
         rows={displayData as (Record<string, unknown> & { id: string })[]}
@@ -141,7 +149,7 @@ export default async function Page() {
           { key: "expected_close_date", label: "预计成交日期", type: "date" },
           { key: "project_progress", label: "项目进度", type: "textarea" },
         ]}
-      />
+      />}
     </div>
   );
 }
