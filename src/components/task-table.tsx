@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Eye, Pencil, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ArrowDownUp, Eye, Pencil, Rows3, Trash2, X } from "lucide-react";
 import { deleteTasks, updateTask } from "@/app/(crm)/tasks/actions";
 import { ProjectTaskSelect, type ProjectTaskOption } from "@/components/project-task-select";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -32,6 +32,13 @@ type CustomerOption = {
 };
 const field =
   "mt-1 w-full rounded-xl border border-[#d8ccb8] bg-white px-3 py-2.5 outline-none focus:border-[#173b34]";
+type Density = "compact" | "standard" | "comfortable";
+type DateOrder = "asc" | "desc";
+const densityPadding: Record<Density, string> = {
+  compact: "p-2.5",
+  standard: "p-4",
+  comfortable: "px-4 py-6",
+};
 
 export function TaskTable({
   rows,
@@ -46,7 +53,35 @@ export function TaskTable({
   const [editing, setEditing] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
+  const [density, setDensity] = useState<Density>("standard");
+  const [dateOrder, setDateOrder] = useState<DateOrder>("asc");
   const [isDeleting, startDelete] = useTransition();
+  useEffect(() => {
+    const storedDensity = window.localStorage.getItem("task-table-density");
+    const storedOrder = window.localStorage.getItem("task-table-date-order");
+    if (["compact", "standard", "comfortable"].includes(storedDensity || ""))
+      setDensity(storedDensity as Density);
+    if (["asc", "desc"].includes(storedOrder || ""))
+      setDateOrder(storedOrder as DateOrder);
+  }, []);
+  const changeDensity = (value: Density) => {
+    setDensity(value);
+    window.localStorage.setItem("task-table-density", value);
+  };
+  const changeDateOrder = (value: DateOrder) => {
+    setDateOrder(value);
+    window.localStorage.setItem("task-table-date-order", value);
+  };
+  const sortedRows = useMemo(
+    () => [...rows].sort((left, right) => {
+      const leftTime = new Date(left.due_at).getTime();
+      const rightTime = new Date(right.due_at).getTime();
+      const safeLeft = Number.isFinite(leftTime) ? leftTime : Number.MAX_SAFE_INTEGER;
+      const safeRight = Number.isFinite(rightTime) ? rightTime : Number.MAX_SAFE_INTEGER;
+      return dateOrder === "asc" ? safeLeft - safeRight : safeRight - safeLeft;
+    }),
+    [dateOrder, rows],
+  );
   const allChecked = rows.length > 0 && checked.length === rows.length;
   const open = (task: TaskRow, edit = false) => {
     setSelected(task);
@@ -69,21 +104,38 @@ export function TaskTable({
 
   return (
     <>
-      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[#e7dece] bg-white px-4 py-2">
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e7dece] bg-white px-4 py-2">
         <span className="text-sm text-neutral-500">
           {checked.length
             ? `已选择 ${checked.length} 条任务`
             : "勾选任务后可批量删除"}
         </span>
-        <button
-          type="button"
-          disabled={!checked.length}
-          onClick={() => setDeleteTargets(checked)}
-          className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
-        >
-          <Trash2 size={16} />
-          批量删除
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <label className="flex items-center gap-2 rounded-lg border border-[#ded5c5] bg-[#faf7f1] px-3 py-2 text-sm text-neutral-600">
+            <Rows3 size={15}/><span>行距</span>
+            <select aria-label="表格行距" value={density} onChange={(event) => changeDensity(event.target.value as Density)} className="bg-transparent font-medium text-[#173b34] outline-none">
+              <option value="compact">紧凑</option>
+              <option value="standard">标准</option>
+              <option value="comfortable">宽松</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 rounded-lg border border-[#ded5c5] bg-[#faf7f1] px-3 py-2 text-sm text-neutral-600">
+            <ArrowDownUp size={15}/><span>截止时间</span>
+            <select aria-label="截止时间排序" value={dateOrder} onChange={(event) => changeDateOrder(event.target.value as DateOrder)} className="bg-transparent font-medium text-[#173b34] outline-none">
+              <option value="asc">最早优先</option>
+              <option value="desc">最新优先</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={!checked.length}
+            onClick={() => setDeleteTargets(checked)}
+            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+          >
+            <Trash2 size={16} />
+            批量删除
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white lg:overflow-visible">
         {rows.length ? (
@@ -116,12 +168,12 @@ export function TaskTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((task) => (
+              {sortedRows.map((task) => (
                 <tr
                   key={task.id}
                   className="border-t transition hover:bg-[#fbf8f1]"
                 >
-                  <td className="p-4 text-center">
+                  <td className={`${densityPadding[density]} text-center`}>
                     <input
                       aria-label={`选择 ${task.title}`}
                       type="checkbox"
@@ -129,7 +181,7 @@ export function TaskTable({
                       onChange={() => toggleOne(task.id)}
                     />
                   </td>
-                  <td className="p-4">
+                  <td className={densityPadding[density]}>
                     <button
                       type="button"
                       className="font-medium text-[#173b34] hover:underline"
@@ -138,8 +190,8 @@ export function TaskTable({
                       {task.title}
                     </button>
                   </td>
-                  <td className="p-4">{task.task_type || "—"}</td>
-                  <td className="min-w-56 p-4">
+                  <td className={densityPadding[density]}>{task.task_type || "—"}</td>
+                  <td className={`min-w-56 ${densityPadding[density]}`}>
                     <div className="font-medium text-[#173b34]">
                       {task.customer_name || "—"}
                     </div>
@@ -156,8 +208,8 @@ export function TaskTable({
                       </div>
                     )}
                   </td>
-                  <td className="p-4">{task.opportunity_name || "—"}</td>
-                  <td className="p-4">
+                  <td className={densityPadding[density]}>{task.opportunity_name || "—"}</td>
+                  <td className={densityPadding[density]}>
                     {task.due_at
                       ? new Date(task.due_at).toLocaleString("zh-CN", {
                           year: "numeric",
@@ -168,10 +220,10 @@ export function TaskTable({
                         })
                       : "—"}
                   </td>
-                  <td className="p-4">{task.priority || "—"}</td>
-                  <td className="p-4">{task.status || "—"}</td>
-                  <td className="p-4">{task.auto_rule || "—"}</td>
-                  <td className="p-4">
+                  <td className={densityPadding[density]}>{task.priority || "—"}</td>
+                  <td className={densityPadding[density]}>{task.status || "—"}</td>
+                  <td className={densityPadding[density]}>{task.auto_rule || "—"}</td>
+                  <td className={densityPadding[density]}>
                     <div className="flex gap-3">
                       <button
                         type="button"
