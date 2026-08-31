@@ -56,6 +56,7 @@ export default async function Dashboard() {
         .select("id,title,due_at,priority,customers(company_name,contact_name,phone,email)")
         .gte("due_at", `${today}T00:00:00`)
         .lt("due_at", `${today}T23:59:59`)
+        .is("deleted_at", null)
         .not("status", "in", "(已完成,已取消)")
         .order("due_at")
         .limit(10),
@@ -63,6 +64,7 @@ export default async function Dashboard() {
         .from("tasks")
         .select("id,title,due_at,priority,customers(company_name,contact_name,phone,email)")
         .lt("due_at", `${today}T00:00:00`)
+        .is("deleted_at", null)
         .not("status", "in", "(已完成,已取消)")
         .order("due_at")
         .limit(10),
