@@ -137,9 +137,9 @@ export function TaskTable({
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white lg:overflow-visible">
+      <div className="overflow-x-auto rounded-2xl border border-[#e7dece] bg-white">
         {rows.length ? (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[1420px] table-fixed text-sm">
             <thead className="sticky top-16 z-10 bg-[#faf7f1] shadow-[0_1px_0_#e7dece]">
               <tr>
                 <th className="w-12 p-3 text-center">
@@ -150,21 +150,15 @@ export function TaskTable({
                     onChange={toggleAll}
                   />
                 </th>
-                {[
-                  "任务",
-                  "类型",
-                  "客户",
-                  "关联项目",
-                  "截止时间",
-                  "优先级",
-                  "状态",
-                  "自动规则",
-                  "操作",
-                ].map((label) => (
-                  <th className="p-3 text-left" key={label}>
-                    {label}
-                  </th>
-                ))}
+                <th className="w-64 p-3 text-left">任务</th>
+                <th className="w-24 p-3 text-left">类型</th>
+                <th className="w-80 p-3 text-left">客户</th>
+                <th className="w-44 p-3 text-left">关联项目</th>
+                <th className="w-36 p-3 text-left">截止时间</th>
+                <th className="w-20 p-3 text-left">优先级</th>
+                <th className="w-20 p-3 text-left">状态</th>
+                <th className="w-64 p-3 text-left">自动规则</th>
+                <th className="w-28 p-3 text-left">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -181,35 +175,35 @@ export function TaskTable({
                       onChange={() => toggleOne(task.id)}
                     />
                   </td>
-                  <td className={densityPadding[density]}>
+                  <td className={`${densityPadding[density]} align-top`}>
                     <button
                       type="button"
-                      className="font-medium text-[#173b34] hover:underline"
+                      className="break-words text-left font-medium leading-6 text-[#173b34] hover:underline"
                       onClick={() => open(task)}
                     >
                       {task.title}
                     </button>
                   </td>
-                  <td className={densityPadding[density]}>{task.task_type || "—"}</td>
-                  <td className={`min-w-56 ${densityPadding[density]}`}>
-                    <div className="font-medium text-[#173b34]">
+                  <td className={`${densityPadding[density]} align-top leading-6`}>{task.task_type || "—"}</td>
+                  <td className={`${densityPadding[density]} align-top`}>
+                    <div className="break-words font-medium leading-6 text-[#173b34]">
                       {task.customer_name || "—"}
                     </div>
                     {task.customer_contact_name && (
-                      <div className="mt-1 text-xs text-neutral-600">
+                      <div className="mt-1 break-words text-xs leading-5 text-neutral-600">
                         联系人：{task.customer_contact_name}
                       </div>
                     )}
                     {(task.customer_phone || task.customer_email) && (
-                      <div className="mt-1 break-all text-xs text-neutral-500">
+                      <div className="mt-1 break-words text-xs leading-5 text-neutral-500">
                         {[task.customer_phone, task.customer_email]
                           .filter(Boolean)
                           .join(" · ")}
                       </div>
                     )}
                   </td>
-                  <td className={densityPadding[density]}>{task.opportunity_name || "—"}</td>
-                  <td className={densityPadding[density]}>
+                  <td className={`${densityPadding[density]} align-top break-words leading-6`}>{task.opportunity_name || "—"}</td>
+                  <td className={`${densityPadding[density]} align-top leading-6`}>
                     {task.due_at
                       ? new Date(task.due_at).toLocaleString("zh-CN", {
                           year: "numeric",
@@ -220,10 +214,10 @@ export function TaskTable({
                         })
                       : "—"}
                   </td>
-                  <td className={densityPadding[density]}>{task.priority || "—"}</td>
-                  <td className={densityPadding[density]}>{task.status || "—"}</td>
-                  <td className={densityPadding[density]}>{task.auto_rule || "—"}</td>
-                  <td className={densityPadding[density]}>
+                  <td className={`${densityPadding[density]} align-top leading-6`}>{task.priority || "—"}</td>
+                  <td className={`${densityPadding[density]} align-top leading-6`}>{task.status || "—"}</td>
+                  <td className={`${densityPadding[density]} align-top break-words leading-6`}>{task.auto_rule || "—"}</td>
+                  <td className={`${densityPadding[density]} align-top`}>
                     <div className="flex gap-3">
                       <button
                         type="button"
