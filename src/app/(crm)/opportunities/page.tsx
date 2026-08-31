@@ -26,12 +26,17 @@ export default async function Page() {
       .map(String)
       .join(" "),
   }));
-  const customerNames = new Map(customerOptions.map((c) => [c.value, c.label]));
+  const customerById = new Map(customers.map((customer) => [String(customer.id), customer]));
   const displayData = (data as Record<string, unknown>[]).map((project) => ({
     ...project,
     id: String(project.id),
     customer_name:
-      customerNames.get(String(project.customer_id || "")) || "未关联客户",
+      customerById.get(String(project.customer_id || ""))?.company_name || "未关联客户",
+    customer_contact_name:
+      customerById.get(String(project.customer_id || ""))?.contact_name || "",
+    customer_email: customerById.get(String(project.customer_id || ""))?.email || "",
+    customer_phone: customerById.get(String(project.customer_id || ""))?.phone || "",
+    customer_country: customerById.get(String(project.customer_id || ""))?.country || "",
   }));
   return (
     <div className="space-y-6">

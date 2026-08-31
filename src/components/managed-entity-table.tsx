@@ -4,6 +4,7 @@ import { Eye, Pencil, Trash2, X } from "lucide-react";
 import { deleteEntities, updateEntity } from "@/app/(crm)/entity-actions";
 import { SearchableSelect } from "@/components/searchable-select";
 import { MultiSelectInput } from "@/components/multi-select-input";
+import { OpportunityEmailTemplate } from "@/components/opportunity-email-template";
 
 type Row = Record<string, unknown> & { id: string };
 export type ManagedColumn = {
@@ -290,7 +291,10 @@ export function ManagedEntityTable({
                     </div>
                   ))}
                 </dl>
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                  {table === "opportunities" && (
+                    <OpportunityEmailTemplate project={selected} />
+                  )}
                   <button
                     onClick={() => setEditing(true)}
                     className="rounded-xl bg-[#173b34] px-5 py-2.5 text-white"
