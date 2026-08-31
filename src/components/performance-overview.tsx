@@ -167,12 +167,7 @@ function ProgressCard({
   return (
     <div className="bg-white p-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm text-neutral-500">{label}</div>
-          <div className="mt-1 text-2xl font-semibold text-[#173b34]">
-            ¥{actual.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}
-          </div>
-        </div>
+        <div className="text-sm font-medium text-[#173b34]">{label}</div>
         {target > 0 ? (
           <span
             className={`rounded-md px-2 py-1 text-xs ${
@@ -187,6 +182,22 @@ function ProgressCard({
           </span>
         )}
       </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-[#f7f3eb] p-3">
+          <div className="text-xs text-neutral-500">实际完成</div>
+          <div className="mt-1 break-all text-xl font-semibold text-[#173b34]">
+            ¥{actual.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}
+          </div>
+        </div>
+        <div className="rounded-xl border border-[#e6d8bd] bg-[#fffaf0] p-3">
+          <div className="text-xs font-medium text-[#9a742d]">目标金额</div>
+          <div className="mt-1 break-all text-xl font-semibold text-[#8b6727]">
+            {target > 0
+              ? `¥${target.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`
+              : "未设置"}
+          </div>
+        </div>
+      </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#eee9df]">
         <div
           className={`h-full rounded-full ${reached ? "bg-emerald-500" : "bg-[#d4af67]"}`}
@@ -194,7 +205,11 @@ function ProgressCard({
         />
       </div>
       <div className="mt-2 flex justify-between text-xs text-neutral-400">
-        <span>{target > 0 ? `目标 ¥${target.toLocaleString("zh-CN")}` : "点击右上角设置目标"}</span>
+        <span>
+          {target > 0
+            ? `已完成 ${percentage}%`
+            : "点击右上角设置目标"}
+        </span>
         {reached && <CheckCircle2 className="text-emerald-500" size={15} />}
       </div>
     </div>
