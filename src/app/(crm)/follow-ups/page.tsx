@@ -5,9 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 export default async function Page() {
   const db = isLocalMode() ? null : await createClient();
   const [records, customers, opportunities] = isLocalMode()
-    ? [localRows("follow_ups"), localRows("customers"), localRows("opportunities")]
+    ? [localRows("follow_ups", "deleted_at is null and channel<>?", ["问题知识库"]), localRows("customers"), localRows("opportunities")]
     : await Promise.all([
-        db!.from("follow_ups").select("*").is("deleted_at", null).order("followed_at", { ascending: false }),
+        db!.from("follow_ups").select("*").is("deleted_at", null).neq("channel", "问题知识库").order("followed_at", { ascending: false }),
         db!.from("customers").select("id,company_name").is("deleted_at", null),
         db!.from("opportunities").select("id,title").is("deleted_at", null),
       ]).then(([followUps, customerRows, opportunityRows]) => [

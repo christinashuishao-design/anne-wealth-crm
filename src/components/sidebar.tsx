@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Bell, Boxes, Building2, CircleDollarSign, ClipboardList, Coins, Database, Factory, Settings, Users } from "lucide-react";
+import { BarChart3, Bell, BookOpenText, Boxes, Building2, CircleDollarSign, ClipboardList, Coins, Database, Factory, Settings, Users } from "lucide-react";
 
 const groups = [
   ["工作台", BarChart3, [["数据看板","/dashboard"],["今日待办","/tasks?view=today"],["逾期提醒","/tasks?view=overdue"]]],
@@ -7,6 +7,7 @@ const groups = [
   ["项目管理", ClipboardList, [["全部项目","/opportunities"],["项目看板","/opportunities?view=board"],["报价后待回复","/opportunities?status=已报价"]]],
   ["跟进中心", Bell, [["邮件审批","/mail-approvals"],["跟进任务","/tasks"]]],
   ["产品中心", Boxes, [["全部产品","/products"],["价格系统","/pricing"]]],
+  ["知识资料", BookOpenText, [["客户问题库","/faq"]]],
   ["供应商管理", Factory, [["全部供应商","/suppliers"],["供应商评分","/suppliers?view=ratings"]]],
   ["订单管理", Building2, [["全部订单","/orders"],["生产中","/orders?status=生产中"]]],
   ["财务管理", CircleDollarSign, [["财务与收付款","/finance"],["订单利润","/finance?view=profit"]]],
