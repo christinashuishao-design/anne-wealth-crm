@@ -12,6 +12,9 @@ export type TaskRow = {
   task_type: string;
   customer_id?: string;
   customer_name?: string;
+  customer_contact_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
   opportunity_id?: string;
   opportunity_name?: string;
   due_at: string;
@@ -19,7 +22,14 @@ export type TaskRow = {
   status: string;
   auto_rule?: string;
 };
-type CustomerOption = { id: string; company_name: string; keywords?: string };
+type CustomerOption = {
+  id: string;
+  company_name: string;
+  contact_name?: string;
+  email?: string;
+  phone?: string;
+  keywords?: string;
+};
 const field =
   "mt-1 w-full rounded-xl border border-[#d8ccb8] bg-white px-3 py-2.5 outline-none focus:border-[#173b34]";
 
@@ -129,7 +139,23 @@ export function TaskTable({
                     </button>
                   </td>
                   <td className="p-4">{task.task_type || "—"}</td>
-                  <td className="p-4">{task.customer_name || "—"}</td>
+                  <td className="min-w-56 p-4">
+                    <div className="font-medium text-[#173b34]">
+                      {task.customer_name || "—"}
+                    </div>
+                    {task.customer_contact_name && (
+                      <div className="mt-1 text-xs text-neutral-600">
+                        联系人：{task.customer_contact_name}
+                      </div>
+                    )}
+                    {(task.customer_phone || task.customer_email) && (
+                      <div className="mt-1 break-all text-xs text-neutral-500">
+                        {[task.customer_phone, task.customer_email]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-4">{task.opportunity_name || "—"}</td>
                   <td className="p-4">
                     {task.due_at
@@ -318,6 +344,13 @@ export function TaskTable({
                     ["任务名称", selected.title],
                     ["任务类型", selected.task_type],
                     ["关联客户", selected.customer_name || "未关联"],
+                    ["客户联系人", selected.customer_contact_name || "—"],
+                    [
+                      "客户联系方式",
+                      [selected.customer_phone, selected.customer_email]
+                        .filter(Boolean)
+                        .join(" · ") || "—",
+                    ],
                     ["关联项目", selected.opportunity_name || "未关联"],
                     [
                       "截止时间",

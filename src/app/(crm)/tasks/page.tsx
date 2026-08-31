@@ -18,17 +18,27 @@ export default async function Page({
   const now = new Date(),
     today = shanghaiDateKey(now);
   let rows: TaskRow[] = [],
-    customers: { id: string; company_name: string; keywords?: string }[] = [],
+    customers: {
+      id: string;
+      company_name: string;
+      contact_name?: string;
+      email?: string;
+      phone?: string;
+      keywords?: string;
+    }[] = [],
     projects: ProjectTaskOption[] = [];
   if (isLocalMode()) {
     customers = localRows("customers").map((c) => ({
       id: String(c.id),
       company_name: String(c.company_name),
+      contact_name: c.contact_name ? String(c.contact_name) : undefined,
+      email: c.email ? String(c.email) : undefined,
+      phone: c.phone ? String(c.phone) : undefined,
       keywords: [c.country, c.contact_name, c.email, c.phone, c.website]
         .filter(Boolean)
         .join(" "),
     }));
-    const names = new Map(customers.map((c) => [c.id, c.company_name]));
+    const customerById = new Map(customers.map((customer) => [customer.id, customer]));
     projects = localRows("opportunities").map((project) => ({
       id: String(project.id),
       title: String(project.title),
@@ -45,25 +55,31 @@ export default async function Page({
               !["已完成", "已取消"].includes(String(t.status))
             : true,
       )
-      .map((t) => ({
-        ...t,
-        id: String(t.id),
-        title: String(t.title),
-        task_type: String(t.task_type),
-        customer_id: t.customer_id ? String(t.customer_id) : undefined,
-        customer_name: names.get(String(t.customer_id)),
-        opportunity_id: t.opportunity_id ? String(t.opportunity_id) : undefined,
-        opportunity_name: projectNames.get(String(t.opportunity_id)),
-        due_at: String(t.due_at),
-        priority: String(t.priority),
-        status: String(t.status),
-        auto_rule: t.auto_rule ? String(t.auto_rule) : undefined,
-      }));
+      .map((t) => {
+        const customer = customerById.get(String(t.customer_id));
+        return {
+          ...t,
+          id: String(t.id),
+          title: String(t.title),
+          task_type: String(t.task_type),
+          customer_id: t.customer_id ? String(t.customer_id) : undefined,
+          customer_name: customer?.company_name,
+          customer_contact_name: customer?.contact_name,
+          customer_email: customer?.email,
+          customer_phone: customer?.phone,
+          opportunity_id: t.opportunity_id ? String(t.opportunity_id) : undefined,
+          opportunity_name: projectNames.get(String(t.opportunity_id)),
+          due_at: String(t.due_at),
+          priority: String(t.priority),
+          status: String(t.status),
+          auto_rule: t.auto_rule ? String(t.auto_rule) : undefined,
+        };
+      });
   } else {
     const db = await createClient();
     let query = db
       .from("tasks")
-      .select("*,customers(company_name)")
+      .select("*,customers(company_name,contact_name,email,phone)")
       .is("deleted_at", null)
       .order("due_at");
     if (view === "today")
@@ -90,6 +106,9 @@ export default async function Page({
     customers = (customersResult.data ?? []).map((customer) => ({
       id: String(customer.id),
       company_name: String(customer.company_name),
+      contact_name: customer.contact_name || undefined,
+      email: customer.email || undefined,
+      phone: customer.phone || undefined,
       keywords: [
         customer.country,
         customer.contact_name,
@@ -106,12 +125,22 @@ export default async function Page({
       code: String(project.opportunity_code || ""),
     }));
     const projectNames = new Map(projects.map((project) => [project.id, project.title]));
-    rows = (tasksResult.data ?? []).map((t) => ({
-      ...t,
-      customer_name: (t.customers as { company_name?: string } | null)
-        ?.company_name,
-      opportunity_name: projectNames.get(String(t.opportunity_id)),
-    })) as TaskRow[];
+    rows = (tasksResult.data ?? []).map((t) => {
+      const customer = t.customers as {
+        company_name?: string;
+        contact_name?: string;
+        email?: string;
+        phone?: string;
+      } | null;
+      return {
+        ...t,
+        customer_name: customer?.company_name,
+        customer_contact_name: customer?.contact_name,
+        customer_email: customer?.email,
+        customer_phone: customer?.phone,
+        opportunity_name: projectNames.get(String(t.opportunity_id)),
+      };
+    }) as TaskRow[];
   }
   const field = "mt-1 w-full rounded-xl border border-[#d8ccb8] px-3 py-2.5";
   return (
