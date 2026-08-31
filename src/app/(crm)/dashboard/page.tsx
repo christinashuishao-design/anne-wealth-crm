@@ -11,6 +11,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { money, shanghaiDateKey, shortDate } from "@/lib/utils";
 import { isLocalMode, localRows } from "@/lib/local-db";
+import { PerformanceOverview } from "@/components/performance-overview";
 
 type DashboardTask = {
   id: string;
@@ -33,13 +34,18 @@ export default async function Dashboard() {
   const expiryLimit = new Date(currentDate);
   expiryLimit.setDate(expiryLimit.getDate() + 7);
 
-  const [customers, projects, todayTasks, overdue, orders, receivables, quotes] =
+  const [customers, customerCountries, projects, todayTasks, overdue, orders, receivables, quotes] =
     await Promise.all([
       supabase
         .from("customers")
         .select("id", { count: "exact", head: true })
         .gte("created_at", `${month}-01`)
         .is("deleted_at", null),
+      supabase
+        .from("customers")
+        .select("country")
+        .is("deleted_at", null)
+        .not("country", "is", null),
       supabase
         .from("opportunities")
         .select("id", { count: "exact", head: true })
@@ -62,8 +68,8 @@ export default async function Dashboard() {
         .limit(10),
       supabase
         .from("orders")
-        .select("sales_amount,sales_currency,net_profit_cny")
-        .gte("order_date", `${month}-01`)
+        .select("order_date,revenue_cny,sales_amount,sales_currency,net_profit_cny")
+        .gte("order_date", `${today.slice(0, 4)}-01-01`)
         .is("deleted_at", null),
       supabase
         .from("receivables")
@@ -102,17 +108,31 @@ export default async function Dashboard() {
     ...normalizeTasks(overdue.data),
     ...normalizeTasks(todayTasks.data),
   ].slice(0, 10);
-  const orderTotal = (orders.data ?? []).reduce(
-    (sum, order) => sum + Number(order.sales_amount),
+  const monthOrders = (orders.data ?? []).filter((order) =>
+    String(order.order_date).startsWith(month),
+  );
+  const orderTotal = monthOrders.reduce(
+    (sum, order) => sum + Number(order.revenue_cny || order.sales_amount),
     0,
   );
   const outstanding = (receivables.data ?? []).reduce(
     (sum, item) => sum + Number(item.outstanding_amount),
     0,
   );
-  const profit = (orders.data ?? []).reduce(
+  const profit = monthOrders.reduce(
     (sum, order) => sum + Number(order.net_profit_cny || 0),
     0,
+  );
+  const yearSales = (orders.data ?? []).reduce(
+    (sum, order) => sum + Number(order.revenue_cny || order.sales_amount),
+    0,
+  );
+  const yearProfit = (orders.data ?? []).reduce(
+    (sum, order) => sum + Number(order.net_profit_cny || 0),
+    0,
+  );
+  const countryClocks = topCountryClocks(
+    (customerCountries.data ?? []).map((item) => String(item.country || "")),
   );
 
   return (
@@ -156,6 +176,8 @@ export default async function Dashboard() {
       ]}
       tasks={tasks}
       finance={{ orderTotal, outstanding, profit }}
+      performance={{ monthSales: orderTotal, yearSales, monthProfit: profit, yearProfit }}
+      countries={countryClocks}
       quotes={(quotes.data ?? []).map((quote) => ({
         id: String(quote.id),
         number: String(quote.quotation_number),
@@ -179,12 +201,16 @@ function DashboardView({
   metrics,
   tasks,
   finance,
+  performance,
+  countries,
   quotes,
 }: {
   dateText: string;
   metrics: Metric[];
   tasks: DashboardTask[];
   finance: { orderTotal: number; outstanding: number; profit: number };
+  performance: { monthSales: number; yearSales: number; monthProfit: number; yearProfit: number };
+  countries: { country: string; timeZone: string }[];
   quotes: { id: string; number: string; validUntil: string }[];
 }) {
   const iconMap = {
@@ -240,6 +266,8 @@ function DashboardView({
           );
         })}
       </section>
+
+      <PerformanceOverview {...performance} countries={countries} />
 
       <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,.85fr)]">
         <div className="overflow-hidden rounded-2xl border border-[#e7dece] bg-white">
@@ -419,7 +447,60 @@ function LocalDashboard() {
       ]}
       tasks={tasks}
       finance={{ orderTotal, outstanding: 0, profit }}
+      performance={{ monthSales: orderTotal, yearSales: orderTotal, monthProfit: profit, yearProfit: profit }}
+      countries={topCountryClocks(customers.map((customer) => String(customer.country || "")))}
       quotes={[]}
     />
   );
+}
+
+const countryZones: Record<string, { label: string; zone: string }> = {
+  china: { label: "中国", zone: "Asia/Shanghai" },
+  "中国": { label: "中国", zone: "Asia/Shanghai" },
+  usa: { label: "美国·纽约", zone: "America/New_York" },
+  "united states": { label: "美国·纽约", zone: "America/New_York" },
+  "美国": { label: "美国·纽约", zone: "America/New_York" },
+  uk: { label: "英国", zone: "Europe/London" },
+  "united kingdom": { label: "英国", zone: "Europe/London" },
+  "英国": { label: "英国", zone: "Europe/London" },
+  france: { label: "法国", zone: "Europe/Paris" },
+  "法国": { label: "法国", zone: "Europe/Paris" },
+  germany: { label: "德国", zone: "Europe/Berlin" },
+  "德国": { label: "德国", zone: "Europe/Berlin" },
+  italy: { label: "意大利", zone: "Europe/Rome" },
+  spain: { label: "西班牙", zone: "Europe/Madrid" },
+  netherlands: { label: "荷兰", zone: "Europe/Amsterdam" },
+  turkey: { label: "土耳其", zone: "Europe/Istanbul" },
+  "türkiye": { label: "土耳其", zone: "Europe/Istanbul" },
+  india: { label: "印度", zone: "Asia/Kolkata" },
+  uae: { label: "阿联酋", zone: "Asia/Dubai" },
+  "united arab emirates": { label: "阿联酋", zone: "Asia/Dubai" },
+  australia: { label: "澳大利亚·悉尼", zone: "Australia/Sydney" },
+  canada: { label: "加拿大·多伦多", zone: "America/Toronto" },
+  brazil: { label: "巴西", zone: "America/Sao_Paulo" },
+  mexico: { label: "墨西哥", zone: "America/Mexico_City" },
+  japan: { label: "日本", zone: "Asia/Tokyo" },
+  korea: { label: "韩国", zone: "Asia/Seoul" },
+  "south korea": { label: "韩国", zone: "Asia/Seoul" },
+  singapore: { label: "新加坡", zone: "Asia/Singapore" },
+  malaysia: { label: "马来西亚", zone: "Asia/Kuala_Lumpur" },
+  indonesia: { label: "印度尼西亚", zone: "Asia/Jakarta" },
+  thailand: { label: "泰国", zone: "Asia/Bangkok" },
+  vietnam: { label: "越南", zone: "Asia/Ho_Chi_Minh" },
+  poland: { label: "波兰", zone: "Europe/Warsaw" },
+  russia: { label: "俄罗斯·莫斯科", zone: "Europe/Moscow" },
+  "south africa": { label: "南非", zone: "Africa/Johannesburg" },
+  "saudi arabia": { label: "沙特阿拉伯", zone: "Asia/Riyadh" },
+};
+
+function topCountryClocks(countries: string[]) {
+  const counts = new Map<string, number>();
+  for (const country of countries) {
+    const key = country.trim().toLowerCase();
+    if (countryZones[key]) counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([key]) => ({ country: countryZones[key].label, timeZone: countryZones[key].zone }));
 }
